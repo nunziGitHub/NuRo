@@ -1,0 +1,2097 @@
+---
+bibliography: ../../References/References.bib
+output:
+  bookdown::pdf_document2:
+    keep_tex: true
+    toc: TRUE
+    toc_depth: 4
+  bookdown::html_document2:
+  bookdown::word_document2: default
+csl: asm.csl
+geometry: margin=1.0in
+header-includes:
+ - \usepackage{upgreek}
+ - \usepackage{booktabs}
+ - \usepackage{longtable}
+ - \usepackage{graphicx}
+ - \usepackage{array}
+ - \usepackage{multirow}
+ - \usepackage{wrapfig}
+ - \usepackage{float}
+ - \usepackage{colortbl}
+ - \usepackage{pdflscape}
+ - \usepackage{tabu}
+ - \usepackage{threeparttable}
+ - \usepackage{threeparttablex}
+ - \usepackage[normalem]{ulem}
+ - \usepackage{makecell}
+ - \usepackage{setspace}
+ - \doublespacing
+ - \usepackage[left]{lineno}
+ - \linenumbers
+ - \modulolinenumbers
+ - \usepackage{helvet}
+ - \renewcommand*\familydefault{\sfdefault}
+ - \usepackage[T1]{fontenc}
+ - \usepackage[shortcuts]{extdash}
+ - \usepackage[document]{ragged2e}
+ - \usepackage{xcolor}
+ - \usepackage{subcaption} 
+---
+
+\raggedright
+
+```{r, echo=FALSE}
+setwd("/home/etag/Documents/STAR/2022_Good/DATA/Lavori/GeometriMean/Main241230/")
+#setwd("/home/etag/Documents/STAR/2022/DATA/Lavori/DA_Comp")#Manuscript template from https://github.com/SchlossLab/Schloss_Rarefaction_mSphere_2024/blob/main/submission/manuscript.Rmd
+
+options(tidyverse.quiet = TRUE)
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(knitr))
+#suppressPackageStartupMessages(library(here))
+suppressPackageStartupMessages(library(kableExtra))
+suppressPackageStartupMessages(library(DT))
+#suppressPackageStartupMessages(library(glue))
+opts_chunk$set("tidy" = TRUE)
+opts_chunk$set("echo" = FALSE)
+opts_chunk$set("eval" = TRUE)
+opts_chunk$set("warning" = FALSE)
+opts_chunk$set("message" = FALSE)
+opts_chunk$set("cache" = FALSE)
+
+inline_hook <- function(x, digits=2){
+
+  if(is.list(x)){
+    x <- unlist(x)
+  }
+  if(is.numeric(x)){
+      paste(format(x,big.mark=',', digits=digits, nsmall=digits, scientific=FALSE))
+  } else {
+      paste(x)
+  }
+}
+knitr::knit_hooks$set(inline=inline_hook)
+
+package_version <- function(package){
+
+  paste(unlist(packageVersion(package)), collapse='.')
+
+}
+
+
+```
+
+# NuRo: the *dynamic* Binomial Model of NGS data that uses the Geometric Mean as Reference Frame for Absolute and Relative Differentials.
+
+
+\vspace{20mm}
+
+**Running title:** NuRo: the *dynamic* Binomial Model of NGS data that uses the Geometric Mean as Reference Frame for Absolute and Relative Differentials.
+
+\vspace{20mm}
+
+Emilia Nunzi${^\dagger}$, Luigina Romani
+
+\vspace{40mm}
+
+${\dagger}$ To whom correspondence should be addressed:
+
+
+\href{mailto:emilia.nunzi@unipg.it}{emilia.nunzi@unipg.it}
+
+Department of Medicine and Surgery
+
+University of Perugia, Perugia, Italy
+
+P.le Gambuli, 1, 06132, Perugia
+
+\vspace{20mm}
+
+**Research article**
+
+\newpage
+
+
+
+
+
+# Abstract
+
+In the context of microbiological analyses, data often have an intrinsic multiplicative structure as in the case of relative abundances, compositional data or fold changes and thus the geometric mean (GM) is of particular interest because it is the only averaging tool that respects this multiplicative framework, unlike the arithmetic mean (AM) which instead assumes additive relationships. Therefore, GM is the most suitable tool to assess the average abundance of features in samples described by NGS data that have quantitative relevance only with respect to that of other features detected in the same sample.   This paper proves that the use of clr-based assays, which uses  GM as abundance normalization factor,  is not affected by bioburden and provide interpretations identical to those obtained from expensive and time-consuming as the flow cytometric measurements. The clr abundance evaluation is also placed  in the context of the novel NuRo *dynamic* binomial model of NGS data which includes the sample richness dependence on sequencing depth and excludes the presence of zero-counted features in single-sample sequencing.  It is shown that when observed features almost approaches the sample richness thus  abundance expressed as clr can be applied  to both rarefied and non-rarefied data depending on whether analyses aim to describe relative or absolute differential comparisons, respectively.  On the other hand, the use of AM on proportions or relative counts, although rarefied, is  meaningless.
+    
+ 
+<!-- In particular, the greater the number of per sample reads, the greater both precision and accuracy of features relative abundance, the greater the number of rares sequenced features, the larger missing features across samples, the lower the  GM of the samples which represents a reference frame common to all samples.  -->
+
+# Introduction
+
+<!-- Ancom-BC compensate for biases introduced by differences in sampling fractions [@hu2022locom] -->
+<!-- Normalization methods WS + rarefaction Rarefaction Rarefaction limits the rate of falsely detecting and rejecting differences between treatment groups. [@schloss2024waste] -->
+
+NGS sequencing allows the detection of complex interactions between genes, between microbes and with their surrounding environment at a relatively low cost and is now an integral component of experimental biology. 
+NGS data are inherently compositional, and although laboratories meticulously try to generate equimolar PCR products, it is necessary to carefully choose the data normalization  and their possible transformation on which to subsequently apply the descriptive statistics. Indeed, it strongly influences the results of the final analyses and the composition of the sample in terms of both number of features and abundance [@schloss2024waste @greenacre2023aitchison]. Scientific literature often refers to counts of NGS features as absolute abundance and this could generate confusion in the choice of analysis software which instead is important to limit exclusively to tools that take into consideration the  compositional nature of high-throughput sequencers, both DNA and RNA based [@wang2024comparison, @calle2023coda4microbiome]. In fact, even the counts as well as the proportions have quantitative relevance only with respect to that of other features detected in the same sample and are therefore called relative counts [@lin2020analysis_1].Thus, comparing the counts of a feature between different samples is meaningless due to the different microbial load which, although in some conditions could be estimated from the sequencing depth of each sample, the latter in turn is linked to the sequencer and not to the quantity of DNA or RNA molecules present in the sample. It follows that also the use of feature counts is a relative abundance estimate and the corresponding normalization domain need to be explicitly indicated for a inferring changes in abundance that can be only relative to the chosen reference frame [@lin2020analysis, @swift2023review]. 
+<!-- Normalization domains treated in this paper are the  within-sample (WS), across-sample (AS), whole-table (WT), across-groups (AG) and the WS-rarefaction (see \@ref(sec:Normalization). .... PER EVITARE CONFUSIONE TRA I DOMINI DI NORMALIZZAZIONE .... SEZIONE CHE CONSIDERA ANCHE MODELLA MATEMATICO -->
+
+<!-- AGGIUNGERE ilr E alr IN THE WS norm -->
+
+The ranking of features detected in the samples describing an experiment is often evaluated using the within-sample (WS) feature-ratios in order to compensate for distortions due to the different and often unknown microbial load of the samples [@morton2019establishing, @hu2022locom]. However, when summary statistics of groups of samples are of interest, the use of the arithmetic mean (AM) of ratios evaluated across–samples (AS), although widely used, could lead to inappropriate ranks without a  suitable transform of data and thus to wrong conclusions if used for comparing composition of the groups  [@fleming1986not].  
+<!-- ## NGS data normalization -->
+<!-- ... clr is used for comparing ratios between samples... -->
+<!-- ... normalizzation domain -->
+In this paper it is recalled and shown through simple examples that among the possible sample averages, the geometric mean (GM) is the only one that respects the multiplicative property that allows the average of the WS ratios to be evaluated as the ratios of the averages  [@fleming1986not]. This fundamental property makes the AS-GM the only correct averaging operator for data presented as ratios to reference values and thus defines a feature ranking of the compositional abundance *regardless of data normalization*. Thus, AS–GM is the most suitable tool for determining NGS microbial and genetic signatures.
+
+Further aspects of GM are also described that highlight the benefits of its use in the context of NGS data analysis. WS–GM is often used as reference frame to obtain centered log–ratio (clr) for evaluating differential abundance of feature between samples [@lin2020analysis_1, @lin2024multigroup] as it takes into account sample composition also when rarefaction is applied. Since this summary statistic can be applied and adopted as normalization factor to any type of  compositional data beyond that of NGS systems such as metabolomics, proteomics, etc., in which concentrations are log-transformed and reported as geometric means, it is therefore of great importance to contextualize its practice in NGS sequencing and relating it to process parameters. Within this context, the mathematical–statistical characterization of GM focused on approximations introduced by the finite sequencing depth is analyzed in this paper. It is used to evaluate conditions under which proportions estimate is affected by sample sequencing depth and to define criteria for compensating the corresponding estimate bias. Moreover, it is shown that when a large number of features are collected, then the WS-GMs of the sample proportions are similar to each other as they all converge towards zero and therefore all become negligible compared to the most abundant features of each sample. The WS-GMs are therefore approximated to a single value which becomes the common reference frame for the samples involved and against which differential  abundance analyses can be performed using WS–clr. The statistical analysis is contextualized within the *dynamic* multinomial NuRo  (by the authors) model proposed in this paper for sequenced data which, compared to the classic “static” model, includes the dependence of the NGS sample richness on the sequencing depth and excludes the presence of features counted as zero in the sequencing of a single sample (see Figure \ref{fig:NuRo}). 
+<!-- Indeed, each new feature detected during sequencing reshapes the a priori composition of the previously detected features by lowering their binomial probability values and produces an updated multinomial model that includes the last detected feature too. -->
+
+![NuRo model for sequenced data. Composition of a single sample $S_a$ (red colored) is skectched in the upper panels with proportion bar plots at two sequencing depth $R_1$ and $R_2$, with $R_2>R_1$, revealing 3 and 4 features, respectively. The $i$-th (yellow) and the $k$--th (green) features ditributions and average proportions are represented on the a-priori probability axes, $p$ and $log(p)$, respectively. The sample GM evaluated on proportions is represented on a logarithmic axis and it is used for drawing the taxon clr abundance according to vector notation that emphasizes its use as the sample reference frame. Dynamic effects of the $R$ and $\widehat{F}$  increases are represented by light-gray and dark-gray dashed lines, respectively. The transition of colors from faded to bright emphasizes the effects of the dynamic model: as the sequencing depth increases, the richness of the sample increases with rares and the WS-GM decreases while at the same time the value of the a priori probabilities decreases while the precision and accuracy of the proportions increases. Lower panel describe the taxon differential between two samples, $S_a$ (red colored) and $S_b$ (pink colored), each with 4 taxa, of which 3 are in common and 1 is not. The feature set involved in the comparison consists of 5 features in total and the missing features in each sample are handled with pseudocount '1' represented by a white outline in the composition bar chart of each sample. This scheme highlights the clr differential as the log-differetial but corrected by the WS-GM log-difference between the two samples. ](../MainToBeUpLoad/Figures/NuRo.png){#fig:NuRo }
+
+The NuRo model is also exploited for some considerations on missing features that cause sparsity of NGS matrices and that should be treated carefully when comparing sample abundance [@kurtz2015sparse, @shaffer2023scnic]. Indeed, the feature–set (microbiome or genes) of an experiment is given by the union of the feature set of each sample involved in  the comparison and features missing in a sample are due to the presence of that feature in at least one of the other samples. Sparsity of NGS data is due to the choice of the pseudocount value used to manage missing features and which is generally set equal to 0 as it does not alter either the count or the proportions. However, the more zeros there are, the greater the impact on the mean statistics, and it is also not possible to use logarithm-based transformations instead, which often help to redistribute these data according to a normal distribution. On the other hand, the use of WS-clr, which is based on logarithmic transformation, forces the use of a non-null pseudocount, usually equal to 1. This value is more suitable for modeling a biological experiment as it represents the minimum count of a rare feature that was not detected in a sample due to technological limitations of sequencing or unlikely presences. The '1' pseudocount affects marginal statistics of groups, but it is shown in this paper that if the sequencing depth is sufficiently large, the bias induced on the most abundant features is negligible, sample-clrs becomes unbiased and can be used for comparing also taxon abundance between samples even when information on microbial load lacks (experimental data from flow cytometric measurement are shown).
+
+As a result, clr-based assays evaluated into the context of the NuRo model of NGS data are not affected by bioburden and provide interpretations identical to those obtained from flow cytometric measurements which are expensive and time-consuming. Therefore, they can be applied to rarefied or non-rarefied data depending on whether the interest is in relative or absolute differential comparisons, respectively. 
+
+All in all, guidelines for managing both precision and accuracy in differential analysis of compositional data based on clr is given and practical example is given by using also generative AI tools that implements the described algorithm with qiime2 pipelines,  R and python. 
+
+<!-- In the next section it is described how to evaluate sample differential taxon abundance  based on clr and that if a large number of features is sequenced thus relative differential predicts absolute differential.  -->
+
+# Results
+
+## Geometric mean is the only appropriate average for ranking feature from NGS data
+
+<!-- In order to compare groups of samples described by relative abundance of features,  composition is the benchmark commonly used to infer a signature based on average abundance values.  -->
+<!-- An abundance benchmark is needed to discriminate signatures associated to different samples and,  -->
+<!-- being NGS data of each sample compositional, it is common to choose the most appropriate normalization factor in order to refer data to a *known* within-sample reference thus having relative abundance values possibly transformed by some suitable functions.  Since the scope of a benchmarking is to obtain a single  value representative of the composition of the group of samples, thus the normalized quantities of each group are usually averaged across-samples of the group [@fernandes2014unifying] . -->
+
+The choice of normalization factor to use as reference frame with the NGS data plays an important role in ensuring that the comparison between features is substantial and appropriate when averaging abundance across samples [@fernandes2014unifying]. In methods section \@ref(sec:RankFeat) it is shown that the AS-GM is the most appropriate average metric for features ranking while the AS arithmetic mean is useless and often leads to completely incorrect considerations even if we consider ratios of taxa expressed as additive log-ratio (alr) since results are affected by the feature used for data normalization (see methods \@ref(sec:GMAM)). Similar considerations apply to the AS total sum since it is proportional to the AS arithmetic mean. 
+
+Moreover, due to the scale invariant property of the geometric mean, ranking of features AS-GM averaged  does not change with the chosen WS normalization factor as well as the ratio between AS-GM averaged features (see methods \@ref(sec:GMGM)). It follows that AS-GM can be used to rank features based on the averaged relative abundance regardless of how and whether the data  are presented as ratios to reference values since the geometric mean can be used even if the numbers are not normalized.
+
+The AS-GM averaging feature ranking has been applied to data from salivary microbiota presented in [@morton2019establishing] that ranks features before and after the brushing event using  16S rRNA gene amplicon sequencing and applying both the DR, aldex2 and CLR methods. The comparison among methods is reported plots (c)-(e) of Figure \ref{fig:plot_oralCLR} and the (e) plot is the ranking obtained by applying the AS-GM averaging to data normalized to the WS-GM, i.e. the per-group average of the abundance expressed as clr. The most differentially abundant features are consistent with the DR and Aldex2 methods, which however do not provide significance to the features (Aldex2 does not detect them, DR only performs classification). Significant taxa obtained with the clr averaging are reported in Figure \ref{fig:plot_oralCLR}(f) and are in agreement  with the scientific literature and with lowering of the total microbial load shown in panel (b): the brushing removes *Haemophilus*  from the oral biofilm. PROF. PLEASE HELP, ... ANCHE CON LA BIBLIO SE POSSIBILE. 
+
+![Saliva experiment: CLR differentials gets significance between the after and before brushing events according to the lower after brusing microbial load (flow cytometry measures). Data from \url{https://github.com/knightlab-analyses/reference-frames}. (a):  Microbial load comparison of the after vs before brushing event as in [@morton2019establishing]. (b): Volcano plot emphasinzing significant clr differentials (c)-(e) Comparison of AS-GM averaging and DR, ALDEx2 and CLR differentias outputs. Features are sorted in the same order as the DR coefficients for comparison consistency purposes. Red bars highligths significant taxa. (f):  Per group distribution of significant taxa obtained from CLR averaging are shown in (b) together to the wilcoxon t-test significance. *:p<0.05; **:p<0.01](../MainToBeUpLoad/Figures/plot_oralCLR.png){#fig:plot_oralCLR height=85%}
+
+
+<!-- \begin{figure}[H] -->
+<!--     \centering -->
+
+<!--     % Prima figura (in alto) -->
+<!--     \begin{subfigure}[b]{\textwidth}  % [b] allinea i caption in basso -->
+<!--         \centering -->
+<!--         \includegraphics[width=0.9\textwidth,keepaspectratio]{../MainToBeUpLoad/Figures/FigGMRank.png} -->
+<!--         \caption{}\label{fig:FigGMRank} -->
+<!--         \vspace{4pt} % Spazio aggiuntivo tra figura e caption -->
+<!--     \end{subfigure} -->
+
+<!--     % Spazio tra le due figure -->
+<!--     \vspace{1pt} % Regola questo valore secondo necessità -->
+
+<!--     % Seconda figura (in basso) -->
+<!--     \begin{subfigure}[b]{\textwidth} -->
+<!--         \centering -->
+<!--         \includegraphics[width=0.9\textwidth,keepaspectratio]{../MainToBeUpLoad/Figures/FigGMBoxplotSig.png} -->
+<!--         \caption{}\label{fig:FigGMBoxplotSig} -->
+<!--         \vspace{4pt} -->
+<!--     \end{subfigure} -->
+
+<!--        % Spazio tra le due figure -->
+<!--     \vspace{1pt} % Regola questo valore secondo necessità -->
+
+<!--     % Terza figura (in basso) -->
+<!--     \begin{subfigure}[b]{\textwidth} -->
+<!--         \centering -->
+<!--         \includegraphics[width=0.4\textwidth,keepaspectratio]{../MainToBeUpLoad/Figures/FigCLRRankVolc.png} -->
+<!--         \caption{}\label{fig:FigCLRRankVolc} -->
+<!--         \vspace{4pt} -->
+<!--     \end{subfigure} -->
+
+<!--     \caption{ -->
+<!--         (a) Comparison of AS-GM averaging and DR, ALDEx2 and ANCOM outputs from \url{https://github.com/knightlab-analyses/reference-frames}. Features are sorted in the same order as the DR coefficients for comparison consistency purposes. Red bars emphasize significant taxa. All taxa that passed the significance tests are highlighted in red. The per group distribution of significant taxa obtained from CLR averaging are shown in (b) together to the t-test significance. *:p<0.05; **:p<0.01 -->
+<!--     } -->
+<!--     \label{fig:FigGMRankFeat} -->
+<!-- \end{figure} -->
+
+
+
+
+
+## The GM as reference frame within the NuRo *dynamic* binomial model of NGS data
+
+In the context of NGS data, the WS-GM normalization factor is of particular interest since it  uses the sample-GM as reference frame: the obtained abundances are relative to the WS averaged  abundance of features and the log-transform gives the clr. The reference frame of this transform preserves knowledge about the composition of the sample even when the data are rarefied, information that is instead lost if proportions are used [@calle2019statistical]. Since this summary statistic is widely applied to compositional data types outside the context of NGS systems such as metabolomics, proteomics, serology, etc., it is therefore of great importance to customize it to NGS process parameters [@egozcue2019compositional].
+
+
+<!-- In this section the statistical characterization of the clr is analyzed to evaluate the reliability of  feature differences between groups of samples.  -->
+For this purpose, the sequencing procedure is modeled with the revised NuRo *dynamic* multinomial model described in  the methods section \@ref(sec:DMMod) that includes, with respect to scientific literature (11) (12) [@pan2021statistical,@fang2023clustering], the dependency on the observed number of features, $\widehat{F}$, with the sequencing depth, $R$. Indeed, the greater the value of $R$, the greater the coverage of less abundant features and therefore the greater the $\widehat{F}$ which better approximates the actual  richness, $F$, of  the biological sample. Since the multinomial model assumes that all a-priori features probabilities sum to 1 for any value of the sample sequencing depth, when  a new feature is revealed during the sequencing , thus the values of the proportional abundances are redistributed by lowering the probabilities of the previously recorded features according to the constraint. 
+
+Although arbitrary as it is limited by the total size of the library [@quinn2018understanding], after sequencing the number of reads per sample becomes a parameter of the process. The resulting $R$ value is finite and   affects precision of proportions of detected features, with particular concern to the rares. The statistical characterization of proportions and log-abundance evaluated from binomial counts together to their relative error is described in methods \@ref(sec:Taylor).  In particular, assuming to have moderate proportion values, $p$,  larger sample size $R$ leads to more precise estimate since the corresponding relative standard deviation $RSD=\sqrt{(1-p)/(pR)}$, obtained from eq. \@ref(eq:RSD), decreases. 
+<!-- as follows:  -->
+<!-- \begin{equation} \label{eq:RSD} -->
+<!-- RSD=\sqrt{\frac{(1-p)}{pR}}, -->
+<!-- \end{equation}  -->
+<!-- decreases.  -->
+Being the sample proportion an unbiased estimator, accuracy improves as precision improves because  proportion estimator becomes more consistently close to the parameter true value.
+The $RSD$ formula given above can be  used for determining a-priori the maximum level of relative precision that can be obtained with a given sample size, $R$, or it can be reverted for arguing the minimum sequencing depth that guarantees a given proportion $p$ evaluated with a target relative error in terms of $RSD$, as reported in Figure  \@ref(tab:TabRSDTransp).  Some examples, also described in the  generative AI section (see sec. \@ref(sec:AIGen)), follow. If $10\,000$ reads are available, the lowest proportion value that can be evaluated with a $RSD$ no larger than 0.10, that ensures that the first non-zero decimal digit is the most significant, is p=0.01. On the other hand, if the scope is to evaluate proportions about $0.001$ with the same precision, thus $100\,000$ reads are needed. 
+
+
+![Relative standard deviation of proportion estimate, $RSD$, and proportion values, $p$, evaluated using $RSD=((1-p)/(pR))^{1/2}$ for different values of the number of sequenced reads, $R$, ($3\,000$, $5\,000$, $10\,000$, $20\,000$, $100\,000$) in NGS data.  Bold columns emphasize parameters for which $RSD=0.1$, a condition that guarantees that the first non-zero decimal digit of $p$ is the most significant.](../MainToBeUpLoad/Tables/RSD_prop.jpg){#tab:TabRSDTransp}
+
+
+```{r, eval=FALSE}
+#Table RSD. Moved from paragraph ## Characterization of the logarithm binomial random variables {#sec:Taylor}
+rm(list = ls())
+library(knitr)
+library(kableExtra)
+library(dplyr)
+
+# Dati di esempio
+p_v = c(seq(0.05, 0.01, by = -0.02), seq(0.008, 0.004, by = -0.002))
+R_v = c(3000, 5000, 10000, 20000, 100000)
+VR_v = c(1e-6, 1e-4, 1e-2)
+
+# Funzione per calcolare p dato VR e R
+calculate_p <- function(VR, R) {
+  1 / (VR * R + 1)
+}
+
+# Creazione del dataframe
+df1 <- data.frame(
+  VR = rep(VR_v, times = length(R_v)),
+  R = rep(R_v, each = length(VR_v)),
+  p = unlist(lapply(R_v, function(R) calculate_p(VR_v, R)))
+) %>%
+  mutate(CLRB = VR * p^2) %>%
+  mutate(RSD = sqrt(VR)) %>%
+  mutate(sqrtCRLB = sqrt(CLRB)) %>%
+  mutate(SD = RSD * p) %>%
+  mutate(
+    p = sprintf("%.3f", p),     # Arrotonda p a 3 cifre decimali
+    RSD = sprintf("%.3f", RSD), # Arrotonda RSD a 2 cifre decimali
+    R = as.integer(R)           # Converte R in intero puro senza decimali
+  )
+
+# Aggiungere la colonna is_bold per identificare le colonne con RSD = 0.10
+df1 <- df1 %>%
+  mutate(RSD=as.character(RSD))%>%
+  mutate(is_bold = (RSD == "0.100"))  # RSD è ora stringa, quindi confronto con "0.10"
+
+# Trasporre il dataframe e ripristinare il nome della colonna "R"
+df1_transposed <- as.data.frame(t(df1[, c("R", "RSD", "p")]), stringsAsFactors = FALSE)
+
+# Reimposta i nomi di colonna con i valori della prima riga
+#colnames(df1_transposed) <- df1_transposed[1, ]  
+colnames(df1_transposed) <- NULL
+#df1_transposed <- df1_transposed[-1, ]  # Rimuove la prima riga ora diventata intestazione
+
+# **Ripristina il nome della prima colonna manualmente**
+#df1_transposed <- cbind(R = c("RSD", "p"), df1_transposed)
+#rownames(df1_transposed) <- NULL
+
+# Creazione della tabella LaTeX con la nuova intestazione
+table_latex <- kable(df1_transposed, format = "latex", booktabs = TRUE, 
+                     caption = "Relative standard deviation of proportion estimate, $RSD$, and proportion values, $p$, evaluated using $RSD=((1-p)/(pR))^{1/2}$ for different values of the number of reads sequenced, $R$, (3000, 5000, 10000, 20000, 100000) in NGS data.  Bold columns emphasize parameters for which $RSD=0.1$, a condition that guarantees that the first non-zero decimal digit of $p$ is the most significant. \\label{tab:TabRSDTransp}") %>%
+  kable_styling(latex_options = c("hold_position", "scale_down"))
+
+# **Colora gruppi di tre colonne (incluse intestazioni)**
+num_cols <- ncol(df1_transposed) - 1  # Escludiamo la prima colonna "R"
+
+for(i in seq(2, num_cols + 1, by = 6)) {  
+  table_latex <- table_latex %>%
+    column_spec(i:(i+2), background = "gray!20")  # Colora di grigio ogni gruppo di tre colonne (incluse intestazioni)
+}
+
+# **Applica il grassetto alle colonne dove RSD = 0.10**
+for(i in which(df1$is_bold)) {
+  table_latex <- table_latex %>%
+    column_spec(i+1, bold = TRUE)
+}
+
+table_latex
+write
+
+write.table(df1_transposed, file="../MainToBeUpLoad/Tables/RSD_prop.csv", quote = F, row.names = T, sep="\t")
+
+
+```
+
+In addition to the proportions, the log-abundance as well as the WS-clr of binomials are asymptotic unbiased estimator and thus they are good candidates to estimate sample abundance (see methods \@ref(sec:CLR)). 
+
+Clr uses WS-GM as the scaling factor and then applies logarithmic transformation to the resulting ratio. Thus the abundance of each taxon is relative to the sample GM   which depends on the sample composition, i.e. on the features distribution. In particular, if a large sequencing depth is used, since a great number of rares  are included in the sample, GM evaluated on proportions tends to a value close to zero thus slightly depending on $R$ while strongly depending on the sample composition. It follows that metrics that uses WS-GM as the abundance reference level, reduces the dependency from the number of reads if a sufficiently large sampling depth is used (see methods \@ref(sec:GeomMean)).
+
+
+<!-- However, when differential abundance of features among samples is analyzed, if samples have the same number of reads .... thus a-priori probabilities of features are comparable in each sample. -->
+
+
+
+
+## Infer changes in abundance among samples: the saliva experiment
+
+When a single sample is analyzed, the corresponding feature table is composed by positive counts.  On the other hand, when comparing abundance among  samples, it is necessary to enter in the feature table an appropriate pseudo-count for those features that are missing because they are only observed in other samples (see methods  \@ref(sec:DMMod)). Features may be missing from the observed sample for two main reasons: they do not belong to the sample (the microbe may not be able to live in that environment or the gene is not expressed) or its proportion in the sample may be lower than the detection threshold imposed by the sequencing depth [@fernandes2014unifying].
+ A 0 pseudocunt does not alter WS-sum of relative counts and proportions, a '1' pseudocount is the minimum value attributable  to rares and that do not alter WS-sum of log-abundance. In any case  WS-- proportions and log-proportions are unbiased and asymptotic unbiased, respectively, estimators and thus when the sampling depth is  large enough, the pseudocount can be compensated  for (see methods \@ref(sec:Taylor)). 
+
+The lack of knowledge regarding total microbial load introduces a bias when  relative counts are used for comparing composition among samples. The use of within-sample ratios or log-ratios of taxa abundances instead of relative counts or proportions of each taxon remove this bias thus reducing both false-positives and false-negatives when microbial load quantification is not available [@morton2019establishing]. However, the choice of the reference feature is not always straightforward and the AS averaging of ratios in each group could lead to inappropriate conclusions as emphasized in methods \@ref(sec:GMAM). This issue can be overcome with the use of the WS-GM as reference frame and thus by considering the WS-clr as the relative abundance to be used for comparing samples log-ratios or compositions. 
+Indeed, the WS-GM  summarizes the knowledge on the average composition in each sample (see section \@ref(sec:GMGM)) while simultaneously emphasizing importance of detected rare features, and thus is a reference frame  peculiar to each sample even when rarefaction is applied: although samples present identical total sums, the same log-abundance value in different samples produces different clr values   since WS-GM takes into account the specific composition of the sample.   Thus, WS-clr can be used for inferring changes in abundance among samples.
+<!-- Being the clr of a taxon $i_{\text{@}L}$ represents the deviation of its abundance from the sample geometric mean,  -->
+The comparison between two samples $\mathbf{a}$ and $\mathbf{b}$, described respectively by proportions vectors $\mathbf{p_a}$ and $\mathbf{p_b}$,  of the abundance corresponding to the $i-th$ feature is described by:
+<!-- \begin{equation} -->\begin{align}  \label{eq:ClrDiffTax}
+\widehat{\rm{clr}}_{i|a}-\widehat{\rm{clr}}_{i|b} = 
+\log\left(\frac{p_{a_i}}{G(\mathbf{p_a})}\right) - \log\left(\frac{p_{b_i}}{G(\mathbf{p_b})}\right)
+\end{align}
+<!-- \log\left(\frac{a_i}{G(\mathbf{a})}\right) - \log\left(\frac{b_i}{G(\mathbf{b})}\right) -->
+<!-- \end{equation} -->
+which states that the difference between clrs is the difference between the sample log-abundances but corrected by the differences between the corresponding log-GMs. 
+It should be noticed that when a sufficiently large number of rares characterize each sample involved in the comparison  process thus all  WS geometric means converge to a small value (see e methods \@ref(sec:GeomMean)) since the average community structures become similar and  thus contribution of  GMs differences in eq. \@ref(eq:ClrDiffTax) reduces. As a consequence, log-abundance differential of  samples with high richness well approximates clr differential. 
+
+Data from salivary microbiota before and after brushing teeth presented in [@morton2019establishing] are used to evaluated clr sample differential since experimental setup provides for both microbial load quantification with flow cytometry and 16S rRNA gene amplicon sequencing.
+<!-- Figure \@ref(fig:MBL) shows flow-cytometry-quantified microbial load in unstimulated saliva collected for 5 min normalized to before brushing teeth recovered from  https://github.com/knightlab-analyses/reference-frames. Each line corresponds to a different volunteer. Error bars represent the standard deviation from duplicate flow-cytometry measurements. -->
+The analysis is here reproduced and extended to show that if a large number of features are used, difference between taxa clr can be alternatively used to log-ratio for comparing ratios of taxa between samples, that difference between samples of a taxon clr based on 16S data and on absolute differentials are identical if pseudocounts are properly managed and that results holds  also when rarefaction is applied. 
+
+
+
+
+<!-- Also the within-sample difference between clr of taxa cancels out the microbial load since it reduces to log-ratio and thus can be alternatively used for evaluating fold-change among samples of feature ratios. -->
+
+
+
+<!-- Rarefaction is a subsampling technique that equalizes sequencing depth across samples by randomly selecting a fixed number of reads. While it helps standardize comparisons, it may distort proportions, especially for low-abundance features, and can lead to data loss. -->
+
+
+<!-- $\widehat{\rm{clr}}_{\textcolor{gray}{(i_{\text{@}L}|j)}}=\log\Big(a_{\textcolor{gray}{(i_{\text{@}L},j)}} \Big) - \log\Big(G(\mathbf{A_{\textcolor{gray}{\text{@}L}}}[,j]\Big)=\log\Big(\widehat{p}_{\textcolor{gray}{(i_{\text{@}L}|j)}} \Big) - \log\Big(G(\mathbf{A_{\textcolor{gray}{\text{@}L}}}[,j]/R_{\textcolor{gray}{(T,j)}}\Big)$,  -->
+
+<!-- The same result can be obtained by using clr of taxa when a deep sequencing depth is available. -->
+
+
+<!-- \begin{figure}[H] -->
+<!-- \includegraphics[height=0.4\textheight]{../Data/dataEmi/Figures/Figure2Morton/MBL.pdf} \caption{Microbial load} \label{fig:MBL} -->
+<!-- \end{figure} -->
+
+
+
+
+
+![Within-sample differences between clr of the relative and absolute (from flow cytometry) counts result in the same average after/before ratio for both the log ratio of taxa and for individual taxa since the microbial load effect is taken into account by the WS-GM reference frame. Relative (a and e), absolute (b, f), clr of relative (c, g) and clr of absolute (d, h) abundances of log(*Actinomyces*/*Haemophilus*) (panel A), *Actinomyces* (panel B) and *Haemophilus* (panel C) before and after brushing teeth from https://github.com/knightlab-analyses/reference-frames. White sub-panels (a) and (b) refer to relative and absolute abundance data of taxa  presented in  [@morton2019establishing], gray sub-panels (c) and (d) refer to WS differences between clrs of taxa evaluted on the same dataset of (a) and (b), respectively.  Gray panels (e)-(h) shows the same metrics of panels (a)-(d) but of data rarefied to the lowest sample sequencing depth ($1\,483$). Clr of the relative (g) and absolute (h) rarefied counts gives the same average after/before ratio. ](../MainToBeUpLoad/Figures/PanelAfterBefore.png){#fig:PanelAfterBefore height=80%}
+
+<!-- \begin{figure}[h] -->
+<!--     \centering -->
+<!--     \begin{subfigure}{0.223\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:logRRel} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/logRRel.png} -->
+<!--     \end{subfigure} -->
+<!--     \begin{subfigure}{0.225\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:logRCell} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/logRCell.png} -->
+<!--     \end{subfigure} -->
+<!--     \begin{subfigure}{0.225\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:logRClr} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/logRClr.png} -->
+<!--     \end{subfigure} -->
+<!--     \begin{subfigure}{0.225\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:logRCellClr} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/logRCellClr.png} -->
+<!--     \end{subfigure} -->
+<!--     \centering -->
+<!--     \begin{subfigure}{0.223\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:logRRelrar} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/logRRel_rar.png} -->
+<!--     \end{subfigure} -->
+<!--     \begin{subfigure}{0.225\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:logRCellrar} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/logRCell_rar.png} -->
+<!--     \end{subfigure} -->
+<!--     \begin{subfigure}{0.225\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:logRClrrar} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/logRClr_rar.png} -->
+<!--     \end{subfigure} -->
+<!--     \begin{subfigure}{0.225\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:logRsClrrar} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/logRCellClr_rar.png} -->
+<!--     \end{subfigure} -->
+<!--     \caption{Relative, absolute, clr of relative and clr of absolute (from flow cytometry) abundances of log(*Actinomyces*/*Haemophilus*) before and after brushing teeth from https://github.com/knightlab-analyses/reference-frames. White panels (a) and (b) refer to relative and absolute abundance data of the log ratio of taxa  presented in  [@morton2019establishing], gray panels (c) and (d) refer to WS differences between clrs of taxa evaluted on the same dataset of (a) and (b), respectively. WS differences between Clr of the relative and absolute counts gives the same average after/before ratio since the microbial load effect cancels out. Gray panels (e)--(h) shows the same metrics of panels (a)--(d) but of data rarefied to the lowest sample sequencing depth (1483). Clr of the relative (g) and absolute (h) rarefied counts gives the same average after/before ratio.   } -->
+<!--     \label{fig:logRsClr} -->
+<!-- \end{figure}   -->
+
+
+<!-- \begin{figure}[h] -->
+<!--     \centering -->
+<!--     \begin{subfigure}{0.223\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:ActinomycesRel} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/ActyRel.png} -->
+<!--     \end{subfigure} -->
+<!--     \begin{subfigure}{0.225\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:ActinomycesCell} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/ActyCell.png} -->
+<!--     \end{subfigure} -->
+<!--     \begin{subfigure}{0.225\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:ActinomycesClr} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/ActyClr.png} -->
+<!--     \end{subfigure} -->
+<!--     \begin{subfigure}{0.225\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:ActinomycesCellClr} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/ActyCellClr.png} -->
+<!--     \end{subfigure} -->
+<!--     \centering -->
+<!--     \begin{subfigure}{0.223\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:ActinomycesRelrar} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/ActyRel_rar.png} -->
+<!--     \end{subfigure} -->
+<!--     \begin{subfigure}{0.225\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:ActinomycesCellrar} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/ActyCell_rar.png} -->
+<!--     \end{subfigure} -->
+<!--     \begin{subfigure}{0.225\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:ActinomycesClrrar} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/ActyClr_rar.png} -->
+<!--     \end{subfigure} -->
+<!--     \begin{subfigure}{0.225\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:ActinomycesCellClrrar} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/ActyCellClr_rar.png} -->
+<!--     \end{subfigure} -->
+<!--     \caption{Relative, absolute, clr of relative and clr of absolute (from flow cytometry) abundances of *Actinomyces* before and after brushing teeth from https://github.com/knightlab-analyses/reference-frames. White panels (a) and (b) refer to relative and absolute abundances data presented in  [@morton2019establishing], gray panels (c) and (d) refer to clr abundances of the same dataset. Clr of the relative and absolute counts gives the same average after/before ratio. Gray panels (e)--(h) shows the same metrics of panels (a)--(d) but of data rarefied to the lowest sample sequencing depth (1483). Clr of the relative (g) and absolute (h) rarefied counts gives the same average after/before ratio.} -->
+<!--     \label{fig:Actinomyces} -->
+<!-- \end{figure} -->
+
+
+<!-- \begin{figure}[h] -->
+<!--     \centering -->
+<!--     \begin{subfigure}{0.223\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:HaemophilusRel} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/HaemRel.png} -->
+<!--     \end{subfigure} -->
+<!--     \begin{subfigure}{0.225\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:HaemophilusCell} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/HaemCell.png} -->
+<!--     \end{subfigure} -->
+<!--     \begin{subfigure}{0.225\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:HaemophilusClr} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/HaemClr.png} -->
+<!--     \end{subfigure} -->
+<!--     \begin{subfigure}{0.225\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:HaemCellClr} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/HaemCellClr.png} -->
+<!--     \end{subfigure} -->
+<!--     \centering -->
+<!--     \begin{subfigure}{0.223\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:HaemophilusRelrar} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/HaemRel_rar.png} -->
+<!--     \end{subfigure} -->
+<!--     \begin{subfigure}{0.225\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:HaemCellrar} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/HaemCell_rar.png} -->
+<!--     \end{subfigure} -->
+<!--     \begin{subfigure}{0.225\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:HaemClrrar} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/HaemClr_rar.png} -->
+<!--     \end{subfigure} -->
+<!--     \begin{subfigure}{0.225\textwidth} -->
+<!--         \centering -->
+<!--         \caption{}\label{fig:HaemCellClrrar} -->
+<!--         \includegraphics[width=\textwidth]{../Data/dataEmi/Figures/Figure2Morton/HaemCellClr_rar.png} -->
+<!--     \end{subfigure} -->
+<!--     \caption{Relative, absolute, clr of relative and clr of absolute (from flow cytometry) abundances of *Haemophilus* before and after brushing teeth from https://github.com/knightlab-analyses/reference-frames. White panels (a) and (b) refer to relative and absolute abundances data presented in  [@morton2019establishing], gray panels (c) and (d) refer to clr abundances of the same dataset. Clr of the relative and absolute counts gives the same average after/before ratio. Gray panels (e)--(h) shows the same metrics of panels (a)--(d) but of data rarefied to the lowest sample sequencing depth (1483). Clr of the relative (g) and absolute (h) rarefied counts gives the same average after/before ratio. } -->
+<!--     \label{fig:Haemophilus} -->
+<!-- \end{figure}     -->
+
+
+Figure \ref{fig:PanelAfterBefore} compares differential abundance after vs before brushing teeth of log(*Actinomyces* / *Haemophilus*), *Actinomyces*, and *Haemophilus*, respectivley, evaluated using many different WS normalizations (percentage, log-ratio, clr). These normalizations are applied to both 16S relative abundance  and to absolute abundance from flow cytometry expressed as number of cells in order to highlight a direct comparison. White panels (a) and (b) of all the three figures refer to relative and absolute abundances data, respectively, presented in  [@morton2019establishing], gray panels (c) and (d) are evaluated in this paper and refer to the clr abundances evaluated on the same corresponding dataset. Gray panels (e)–(h) shows the same metrics of panels (a)–(d) but of data rarefied to the lowest sample sequencing depth ($1\,483$). 
+
+Panel A of Figure  \ref{fig:PanelAfterBefore} focuses on WS log-ratio and clr differences between  *Actinomyces* and *Haemophilus*. WS differences between clrs of taxa shown in Figures  (c)-(d)  cancel out microbial load effect and thus gives the same average after/before ratio shown in Figures (a)-(b).  This happens also when clr is applied to rarefied data figure  e-h and therefore the difference between clrs can be used in the same way as the log ratio regardless of the number of readings in each sample although their interpretation is quite different when rarefaction is applied. Without rarefaction this log-ratio describes the interaction of the two *taxa* and states that after brushing *Haemophilus* counts are less than *Actinomyces* [@morton2019establishing]. However, it is not possible infer on proportions relationship due to the lower microbial load after brushing. When rarefying to the lowest sample sequencing depth ($1\,483$ reads), microbial load cancels out and  proportions becomes comparable between samples although less precise since some samples were up to $20\,533$ reads. In this case one subject has negative log-ratio although the number of counts  after brushing *Haemophilus*  are larger than *Actinomyces*. Clrs gives result coherent with log-ratio,  some differences are due to the low number of considered reads that affects the WS-GM of the before - after groups. In any case, clrs of relative and absolute counts gives identical results.
+
+
+Panel B and C shows *Actinomyces* and *Haemophilus* abundances, respectively. In both  cases relative and absolute clrs in (c) and (d) sub-panels give the same average after/before ratio thus suggesting that analyses based on clrs  remain unaffected by microbial load and lead to the same conclusions as those from flow cytometry, which is instead costly and time-consuming. In particular clrs indicates  that not all *Actinomyces* abundances increase in the after group as the proportion values in panel B-(a)  apparently show, since most of the samples have a similar abundance compared to the corresponding before one, two samples increase the counts while two samples decrease them. All the average clrs  of *Haemophilus* decrease after brushing and thus, by putting together the considerations expressed previously relating to the log-ratios, it can be deduced that *Haemophilus* relative counts actually decreases more than *Actinomyces*, according to results already shown in Figure \ref{fig:plot_oralCLR}. Results with rarefied data confirms this interpretation since the average clr on relative (g) and absolute (h) abundances  are identical. Thus, clr based on 16S data can be used to evaluate samples differential abundance of an individual  taxon. If the comparisons are in terms of sample proportions then rarefaction is necessary, if the differences are focused in terms of absolute counts rarefaction is not necessary and the result of the comparisons is consistent even when the microbial load is not available.
+
+
+![Saliva experiment: comparison of the microbiome of subject A before and after toothbrushing. Missing features reduce the value of the WS-GM to quantities that are increasingly negligible the greater the number of missing genera. Light-blue barplots represent genera proportions ordered in descending order vs the corresponding cumulative proportion. Blue line plots the cumulative WS-GM evaluated up to each feature indicated by the corresponding blue dot vs the cumulative proportions. Horizontal green and red dashed-lines marks features with counts equal to 10 and 1, respectively. Counts of feature between the green and the red line are  between 1 and 10 (rares). Features below the red line are missing in the sample while present in at least one of samples included in the experiment and are revealed  by the '1' pseudocount needed for evaluating GM.    ](../MainToBeUpLoad/Figures/A_GM_cumsum.png){#fig:A_GM_cumsum}
+
+
+
+<!-- \begin{figure}[h] -->
+<!--     \centering -->
+<!--     \begin{subfigure}{.45\textwidth} -->
+<!--         \centering -->
+<!--         \includegraphics[width=1\textwidth]{../Data/dataEmi/Figures/Figure2Morton/A1_GM_cumsum.png} -->
+<!--         \caption{Before brushing.} -->
+<!--         \label{fig:A1GMcumsum} -->
+<!--     \end{subfigure} -->
+<!--     \begin{subfigure}{.45\textwidth} -->
+<!--         \centering -->
+<!--         \includegraphics[width=1\textwidth]{../Data/dataEmi/Figures/Figure2Morton/A2_GM_cumsum.png} -->
+<!--         \caption{After brushing.} -->
+<!--         \label{fig:A2GMcumsum} -->
+<!--     \end{subfigure} -->
+<!--     \caption{Microbiome comparison of subject A of the saliva experiment before and after brushing. Light-blue barplots represent genera proportions ordered in descending order vs the corresponding cumulative proportion. Blue line plots the cumulative WS-GM evaluated up to each feature indicated by the corresponding blue dot vs the cumulative proportions. Horizontal green and red dashed-lines marks features with counts equal to 10 and 1, respectively. Counts of feature between the green and the red line are  between 1 and 10 (rares). Features below the red line are missing in the sample while present in at least one of samples included in the experiment and are revealed  by the '1' pseudocount needed for evaluating GM.   } -->
+<!--     \label{fig:GMcumsum} -->
+<!-- \end{figure} -->
+
+
+ 
+
+An in-depth study is appropriate to better understand how the WS-GM modulates the composition of the sample within an experiment such as that of saliva and why it becomes the common reference for all the samples involved if the microbiome of the experiment is sufficiently rich. For this purpose, the genus-level microbiome of subject A from the saliva experiment was analyzed as it has the greatest difference in sequencing depth  between before ($20\,533$) and after ($2\,219$) brushing. Figure \ref{fig:A_GM_cumsum} shows the WS-GM (blue line) of each sample proportions toghether to the proportions (light-blue bar plot) ordered in descending order  vs cumulative proportions value. The \ref{fig:A_GM_cumsum} a-c and e-f panels refers to the before and to the after brushing state, respectively, and the two bottom subpanels are zoom details of the top panel on rare microbes. Rares features in each samples are those between the green and the red dashed-line that marks features with 10 and 1 counts, respectively. Thus, the red line higlight the  WS-GM evaluated on features present in the sample. Genera below the red line are missing in the considered sample and are present in the analyzed microbiome since each of them is present in at least one of saliva experiment. The pseudocount '1' is used to evaluate WS-GM and therefore a count 1 is assigned to each missing feature which is the minimum value that allows to indicate the possible presence of this genus in the sample and the need for greater sequencing depth for quantitative evaluations. The missing features reduce the value of the WS-GM to quantities that are increasingly negligible the greater the number of missing genera. The WS-GM of the before sample converge to $3.2 \cdot 10^{-4}$ while the after sample converge to $1.4 \cdot 10^{-3}$.  These values are negligible with respect to  most abundant proportion values for both samples and thus the two WS-GMs become a unique reference frame valid for  both sample. It follows that clr effectively evaluate differential abundance of most abundant features.
+
+
+
+
+<!-- \begin{figure}[H] -->
+<!--     \centering -->
+<!--     \begin{subfigure}{.9\textwidth} -->
+<!--         \centering -->
+<!--         \includegraphics[width=.9\textwidth]{../Data/dataEmi/Figures/Figure2Morton/pvals-comparison_clr_cell.png} -->
+<!--         \caption{Absolute abundances (\# of cells).} -->
+<!--         \label{fig:pvals-comparison_clr_cell} -->
+<!--     \end{subfigure} -->
+
+<!--     \caption{Cumulative GM of A1 and A2.} -->
+<!--     \label{fig:GM_cumsum} -->
+<!-- \end{figure} -->
+
+
+
+
+
+# Discussion
+
+In order to compare groups of samples described by relative abundance of features,  composition is the benchmark commonly used to infer a signature based on average abundance values. 
+An abundance benchmark is needed to discriminate signatures associated to different samples and, 
+being NGS data of each sample compositional, it is common to choose the most appropriate normalization factor in order to refer data to a *known* within-sample reference thus having relative abundance values possibly transformed by some suitable functions.  Since the scope of a benchmarking is to obtain a single  value representative of the composition of the group of samples, thus the normalized quantities of each group are usually averaged across-samples of the group [@fernandes2014unifying] .
+
+
+
+In the context of NGS data, the GM is of particular interest since it  is the only averaging tool that respects the multiplicative property thus making the GM the only correct averaging operator across samples that are presented as ratios to some reference values. Therefore, AS-GM  defines a feature ranking of the average compositional counts regardless of data normalization and can be used for determining NGS microbial and genetic signatures. Moreover, WS-GM contextualized within the NuRo *dynamic* multinomial modelling of NGS counts overcomes sparsity of the matrix when comparing groups of samples.
+
+
+Indeed, sparsity of NGS data is known to be critical issue for managing benchmarking tools. The sparsity is due, however, to the attribution of '0' pseudocount to the features missing in the sample but present in other samples of the experiment. In fact, if a single sample is sequenced, thus all features counts are non-null. If more than one sample is considered in a feature table, thus some characteristics may be only in a sample while missing in at least one of the others. Each sample contributes to the ecosystem composition with its own features and the union of samples defines the entire set of features used for benchmarking. When target sequencing is used, the feature set is the microbiome, when RNA-seq is used the feature set are genes.
+
+
+
+When evaluating changes of abundance between samples, rarefaction is desirable in order to ensure a comparable prior probability distribution of features detected in each sample (see sec. \@ref(sec:DMMod)). The rarefaction value should be as high as possible because it fixes both the precision of the proportion estimates based on Fig. \ref{fig:combined_plot}a and the number of features revealed in each sample. Samples with sequencing depth that cannot guarantee the target relative standard deviation of the proportion estimates,$RSD^*$, ususally fixed to $0.1$, should be excluded from the analysis (see sec. \@ref(sec:Taylor)). Moreover, particular attention must be paid to further counts normalization or transform and  to the management of missing data. If no rarefaction is applied, differential abundance due to the different library size is revealed.
+
+After the possible  rarefaction process, the proportions or relative counts can be equivalently used to compare samples abundances. The comparison highlights the missing features that are usually replaced with the '0' pseudocount  so that sample proportions are not affected. While a differential test could be carried out when only two samples are involved for inferring a feature proportion change, attention must be paid when comparing two groups of samples. In fact, feature abundance is usually averaged across each group and then tests are performed to compare the mean values of the groups. However, since NGS data are intrinsically compositional, the averaging operator across samples cares  since arithmetic mean on proportions or relative counts, although rarefied, is  meaningless (see sec. \@ref(sec:RankFeat)). Indeed, being the geometric mean the only correct average operator for compositional data, log transformed data and WS-clr are the most appropriate form of abundance for carrying out analyses since the per group arithmetic mean on log-data corresponds to the logarithm of the per group geometric mean of proportions or counts.
+<!-- (as shown in Fig. \@ref(fig:ComplexTabAbsLog)). -->
+<!-- and the linearity  of the AM operators simplifies comparisons procedures.  -->
+<!-- The AS marginal statistics of the logarithm of proportions reported in Fig. \@ref(fig:ComplexTabAbsLogFig8) confirms that the AM operator conserves the average feature ranking being the logarithm a monotonic function.  -->
+<!-- However, data respecting their mutual compositional relationships the logarithmic ratio of a taxon between two groups of samples could still lead to misleading conclusions in inferring abundance change between samples since variations within each sample are relative only to since.  -->
+<!-- In addition, since geometric mean ranks features based on the per group average abundance regardless the used WS normalization, a convenient data normalization is the WS-GM (see Tab. \@ref(fig:ComplexTabAbsFig5)) since GM takes into account knowledge on the sample composition and its log-transform is the abundance expressed as clr. -->
+
+The WS-clr has been applied to the saliva experiment and it has been shown that  clr-based assays integrated into the context of the NuRo *dynamic* binomial model of NGS data are not affected by microbial load  and provide interpretations identical to those obtained from flow cytometric measurements. This result is valid also when rarefaction is applied although interpretation of the outcome should applied to proportions and not to counts, and a large number of reads is desirable in order to improve both precision and accuracy of relative abundances of most abundant features and to create a common reference frame for samples involved in the experiment.  All in all, WS-clr can be applied to rarefied or non-rarefied data depending on whether the interest is in relative or absolute differential comparisons, respectively, and interpreted as if absolute abundance were available.
+
+
+# Methods
+
+
+## Geometric mean is the most appropriate average metric for features ranking  {#sec:RankFeat}
+
+
+<!-- In this section it is shown that geometric mean is the more appropriate summary statistics for comparing    samples features composition and that differential analysis based on clr abundance is unbiased if rarefaction is applied or if a large number if reads is acquired (!). -->
+
+<!-- Samples characterized by a common microbial signature presents similar relative abundances while significant differential abundance of some features identify diverse signature.  -->
+
+NGS data are compositional and thus the choice of the WS normalization factor plays an important role for samples comparison to be substantial and appropriate. To prove this, we adapt and extend the toy examples shown in [@fleming1986not] to cases of NGS feature abundance and recall that the following three rules must be observed. 
+
+
+### Rule 1. Do Not Use the Arithmetic Mean to Average Normalized Numbers  {#sec:GMAM}
+
+
+To illustrate problems arising from using arithmetic mean, consider the simple example illustrated in Figure \@ref(fig:SimpleTabAbs) already analyzed in the scientific literature [@fleming1986not] but here adapted to represent a feature table of sequenced samples. In particular, the panel \@ref(fig:SimpleTabAbsFig1) shows relative counts of a feature table (the yellow one) describing the composition of  three features $F_1$, $F_2$, and $F_3$ in  two samples, $S_1$ and $S_2$. The three white and gray tables associated with it are the within-sample (WS) marginal (below), the across-samples (AS) marginal (right), and the whole-table (WT) marginal  (diagonal) tables. Each marginal reports the most used summary stas: total sum (Sum), the total arithmetic (AM) and geometric (GM) mean.
+
+
+
+<!-- ![Toy example demonstrating that arithmetic mean (AM) is usless and leads to incorrect conclusions if applied to within-sample (WS) normalized data since depends on the WS normalization domain. Each panel reports the relative count (yellow) or the WS-normalized (light blue) table together to the corresponding marginal (WS, AS, WT) stats. Arithmetic (AM), geometric(GM) means and total sums (Sums) are the considered summary stats.  The GM value, unlike AM, produces a consistent feature ranking across different normalizations.](../MainToBeUpLoad/Tables/TableSimple.jpg){#fig:SimpleTabAbs} -->
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../MainToBeUpLoad/Tables/Tables/SimpleTabAbs_1.png}
+        \caption{Relative counts table and corresponding marginal stats.}
+        \label{fig:SimpleTabAbsFig1}
+    \end{subfigure}
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../MainToBeUpLoad/Tables/Tables/SimpleTabAbs_2.png}
+        \caption{Sample proportions (WS-normalization of relative counts to the sample total sum) table and corresponding marginal stats.}
+        \label{fig:SimpleTabAbsFig2}
+    \end{subfigure}
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../MainToBeUpLoad/Tables/Tables/SimpleTabAbs_3.png}
+        \caption{Alr (WS-normalization  of relative counts to $F_1$ abundance) and corresponding marginal stats}
+        \label{fig:SimpleTabAbsFig3}
+    \end{subfigure}
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../MainToBeUpLoad/Tables/Tables/SimpleTabAbs_4.png}
+        \caption{Alr (WS-normalization  of relative counts to $F_2$ abundance) and corresponding marginal stats}
+        \label{fig:SimpleTabAbsFig4}
+    \end{subfigure}
+    \caption{Toy example demonstrating that arithmetic mean (AM) is usless and leads to incorrect conclusions if applied to within-sample (WS) normalized data since depends on the WS normalization domain. Each panel reports the relative count (yellow) or the WS-normalized (light blue) table together to the corresponding marginal (WS, AS, WT) stats. Arithmetic (AM), geometric(GM) means and total sums (Sums) are the considered summary stats.  The GM value, unlike AM, produces a consistent feature ranking across different normalizations. }
+    \label{fig:SimpleTabAbs}
+\end{figure}
+
+The counts of the F1 feature compared to those of F2 in the S1 sample are half, while in the S2 sample they are double. Furthermore, the abundance of $F_3$ relative to $F_1$ is double in $S_1$, but is half as much in $S_2$. Supposedly, these three features contributes to the same compositional diversity degree: each feature has a lower abundance than one of the others in one of the samples, but greater than the same ratio in the other sample. However, if we choose $F_1$ as the baseline feature, normalize each sample count to the corresponding abundance of $F_1$ (WS-$\rm{F_1}$ normalized blue table in the \@ref(fig:SimpleTabAbsFig3) panel), and use the arithmetic mean (AM) as the across-sample summary statistic (AS marginal), we find that the abundance of both $F_2$ and $F_3$ is 25% larger than that of $F_1$. 
+
+The situation gets even worse if we take the taxon $F_2$ as reference (WS-$\rm{F_2}$ normalized blue table in the \@ref(fig:SimpleTabAbsFig4) panel) and calculate the corresponding AS-AM marginal. Indeed, it turns out that the abundance of $F_2$ is now 25% lower than $F_1$ and more than twice lower than $F_3$ despite the fact that the total abundance of $F_1$ and $F_3$ was lower than that of $F_2$. It is therefore clear that in this context the arithmetic mean is not only useless but leads to completely incorrect considerations even if we consider ratios of taxa expressed as alr since results are affected by the feature used for data normalization. Similar considerations apply to the total sum since it is proportional to the arithmetic mean.
+
+### Rule 2. Use the Geometric Mean to Average Normalized Numbers {#sec:GMGM}
+
+If the AS-GM is used as summary statistic, the interpretation is consistent with the composition indicated by the counts. In the example of figure \@ref(fig:SimpleTabAbs),  AS–GMs of features were practically equal on both relative counts and ratios of features independently on the chosen normalization feature. This is an important property of the geometric mean that can be exploited to compare AS means regardless the used normalization. Another toy example adapted from [@fleming1986not] is discussed in order to clarify this concept  (see figure \@ref(fig:ComplexTabAbs)). 
+
+
+<!-- \begin{figure}[ht] -->
+<!-- \hskip0cm -->
+<!-- \includegraphics[width=1\textwidth]{./Tables/ComplexTabAbs.pdf} \caption{ComplexTabAbs} \label{fig:ComplexTabAbs} -->
+<!-- \end{figure} -->
+
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../MainToBeUpLoad/Tables/Tables/ComplexTabAbs_1.png}
+        \caption{Relative counts table and corresponding marginal stats.}
+        \label{fig:ComplexTabAbsFig1}
+    \end{subfigure}
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../MainToBeUpLoad/Tables/Tables/ComplexTabAbs_2.png}
+        \caption{Sample proportions (WS normalization of relative counts to sample total sum) table and corresponding marginal stats.}
+        \label{fig:ComplexTabAbsFig2}
+    \end{subfigure}
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../MainToBeUpLoad/Tables/Tables/ComplexTabAbs_3.png}
+        \caption{Alr (WS normalization of relative counts to $F_1$ abundance) and corresponding marginal stats}
+        \label{fig:ComplexTabAbsFig3}
+    \end{subfigure}
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../MainToBeUpLoad/Tables/Tables/ComplexTabAbs_4.png}
+        \caption{Alr (WS normalization of relative counts to $F_2$ abundance) and corresponding marginal stats}
+        \label{fig:ComplexTabAbsFig4}
+    \end{subfigure}
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../MainToBeUpLoad/Tables/Tables/ComplexTabAbs_5.png}
+        \caption{Exp(clr) (WS normalization of relative counts to sample GM) and corresponding marginal stats}
+        \label{fig:ComplexTabAbsFig5}
+    \end{subfigure}
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{./Tables/ComplexTabAbs_6.png}
+        \caption{AM normalization (WS normalization of relative counts to sample AM) and corresponding marginal stats}
+        \label{fig:ComplexTabAbsFig6}
+    \end{subfigure}
+    \caption{Toy example demonstrating that geometric mean (GM) is the only appropriate average summarizing composition of the group since feature ranking based on GM is independent on the WS-normalization domain and thus can be used regardless of how and if the data  are normalized. Each panel reports the relative count (yellow) or the WS-normalized (light blue) count table together to the corresponding marginal (WS, AS, WT) stats. Arithmetic (AM), geometric(GM) means and total sums (Sums) are the considered summary stats. The GM value produces a consistent feature ranking across different normalizations.}
+    \label{fig:ComplexTabAbs}
+\end{figure}
+    
+
+<!-- \begin{figure}[H] -->
+<!--     \centering -->
+<!--     \begin{subfigure}{0.45\textwidth} -->
+<!--         \centering -->
+<!--         \includegraphics[width=\textwidth]{./Tables/ComplexTabAbs_7.png} -->
+<!--         \caption{Clr (log transform of WS GM normalized data) and corresponding marginal stats} -->
+<!--         \label{fig:ComplexTabAbsLogFig7} -->
+<!--     \end{subfigure} -->
+<!--     \begin{subfigure}{0.45\textwidth} -->
+<!--         \centering -->
+<!--         \includegraphics[width=\textwidth]{./Tables/ComplexTabAbs_8.png} -->
+<!--         \caption{log-proportions (log transform of WS AM normalized data) and corresponding marginal stats} -->
+<!--         \label{fig:ComplexTabAbsLogFig8} -->
+<!--     \end{subfigure} -->
+<!--     \caption{Log-transform feature tables (green). Each panel reports also the corresponding marginal (WS, AS, WT) stats. Arithmetic (AM), and total sums (Sums) are the considered summary stats. } -->
+<!--     \label{fig:ComplexTabAbsLog} -->
+<!-- \end{figure} -->
+
+The yellow feature table in the \@ref(fig:ComplexTabAbsFig1) panel describes the composition of 3 features $F_1$, $F_2$ and $F_3$, in 5 samples, $S_1$, ..., $S_5$. 
+
+Considering ratios of  features to taxon $F_1$ (WS-$\rm{F_1}$ normalized blue table in the \@ref(fig:ComplexTabAbsFig3) panel) and the arithmetic mean summary statistic of each feature across samples (AS-AM), it could be deduced that the abundance of $F_2$  and $F_3$ are 1% and 7% higher, respectively, than $F_1$.  On the other hand,  arithmetic means evaluated on ratios to $F_2$ (WS-$\rm{F_2}$ normalized \@ref(fig:ComplexTabAbsFig4) panel) indicate that $F1$ abundance is now 32% larger than $F_2$. This two results are distant and confirm that the arithmetic mean is not the appropriate tool for comparing average relative abundances. The geometric mean leads to more coherent conclusions: considering ratios to $F_1$ results that  $F_2$ is 14% lower  than $F_1$, and $F_3$ is 15% lower. The same results are derived by using ratios to $F_2$: in fact $1.17=1/0.86$. Moreover, comparing $F_2$ and $F_3$ without explicitely normalizing to $F_3$ we can argue that $F_2$ is 1% larger than $F_3$ since $0.86/0.85=1.01$ as already indicated by geometric mean on data normalized to $F_2$. Even considering sample proportions, i.e. WS Sum-normalized table shown in figure \@ref(fig:ComplexTabAbsFig2)  accompanied by the corresponding marginal statistics, the ranking of feature ratio based on geometric mean does not change with WS normalization factor since $0.86=0.300/0.350=503.13/586.79$ or $0.85=0.298/0.350=498.68/586.79$. The same considerations apply when relative count are normalized to the WS-GM (Figure \@ref(fig:ComplexTabAbsFig5)) or WS-AM (Figure \@ref(fig:ComplexTabAbsFig6)) mean.  
+<!-- ###*** MORTON COMPARE THE TWO RANKING -->
+
+Furthermore, the geometric mean can be used even if the numbers are not normalized. In fact, due to the multiplicative  property of the geometric mean, which allows the geometric mean of the ratios to be evaluated as the ratios of the geometric means, normalization of  means resulting from unnormalized data are equivalent to means of normalized data. This fundamental property makes the geometric mean the only correct averaging operator for data presented as ratios to reference values and which results in feature ranking based on the average abundance. Thus, this example shows that the geometric mean can be used to rank features based on the averaged relative abundance regardless of how and whether the data  are presented as ratios to reference values since the geometric mean can be used even if the numbers are not normalized [@fleming1986not].
+
+
+
+In conclusion, due to the multiplicative property of the geometric mean, ranking of features AS-averaged  does not change with the chosen WS-normalization factor as well as the ratio between AS-average features.  
+
+<!-- Of particular interest is the WS-GM normalization of Figure \@ref(fig:ComplexTabAbsFig5) that uses the sample-GM as reference frame: the obtained WS abundances are relative to the WS per feature average abundance and the log-transform gives clr (see Fig. \@ref(fig:ComplexTabAbsLog7)). The reference frame of this transform preserves knowledge about the composition of the sample even when the data are rarefied, which is instead lost if proportions (shown for completeness in  Fig. \@ref(fig:ComplexTabAbsLogFig8)) are used. -->
+<!-- It is worth to recall that ratio of the feature abundance between two samples  is not representative of the relative abundance fold-change unless samples present almost the same total counts.   -->
+
+### Rule 3. Use the Sum (or arithmetic mean) of raw, unnormalized results whenever This “Total” Has Some Meaning {#sec:GMSum}
+
+The total sum of feature abundances across samples is used to classify features based on their abundance relative to the group rather than a single sample. Since the arithmetic mean, or equivalently the sum, does not provide useful results on normalized data (see methods \@ref(sec:GMAM)), it is important that the sum is calculated using raw, non-normalized data and that the relative rankings are then evaluated from the corresponding ratios. In figure \@ref(fig:ComplexTabAbsFig1), total sum of $F_2$ is 16% smaller  than $F_1$ while $F_3$ is 63% larger. Analogous considerations can be applied to the total sum of feature abundance within sample that is used to classify samples based on the number of reads. In previous example $S_2$ is 82% smaller than $S_1$ while $S_5$ is 90% larger.
+
+<!-- Geometric mean can  be used  to rank ratio of features of a group of samples based on the AS average abundance.   -->
+
+
+
+## NuRo: *Dynamic* Multinomial model for NGS data {#sec:DMMod}
+
+Let us consider a vector of abundances $\mathbf{a}=[a_{1},a_{2},...,a_{i},...,a_{\widehat{F}}]$ with $i=1,...,\widehat{F}$ 
+<!-- of  $\widehat{F}$  features  -->
+that represents the outcome of the sequencing of a single sample $S$ with a number of features equal to $\widehat{F}$. The element $a_i$ is the abundance of the $i$--th feature, $F_i$, and the sum of all features abundance is $R$ is the total library size, i.e. $R=\sum_{i=1}^{\widehat{F}}{a_i}$. This value depends on the assay settings and not on the input material thus is an arbitrary value characterizing the sequencing process and related to the sample richness [@quinn2018understanding]. In particular, the greater the value of R, the greater the coverage of less abundant features and therefore the greater the number of observed features, $\widehat{F}$, which better approximates the actual number of features, $F$, present in the biological sample. The arbitrariness of $R$ means that counts of NGS data are not absolute but compositional and that can be modeled using the discrete Dirichlet-Multinomial distribution $\mathbf{a} \sim \text{DirMult}(R,\mathbf{\alpha})$ with parameter $\mathbf{\alpha}=\{\alpha_1, \alpha_2, ...., \alpha_{\widehat{F}}\}>\mathbf{0}$ and $\alpha_0=\sum_{k=1}^{\widehat{F}}{\alpha_k}$. Within this model, $a_i$ is the number of times a read was successfully recognized as a feature $F_i$ among the available $R$ reads when the probability of success is $p_i$. Therefore, the observations come from a multinomial distribution with number of trials $R$ and with corresponding probability vector $\mathbf{p}=\{p_1,p_2,...,p_i,...p_{\widehat{F}} \}$ obtained from a Dirichlet distribution parameterized in $\mathbf{\alpha}$, with $p_i=\frac{\alpha_k}{\alpha_0}$ whose sum is 1 [@fernandes2013anova].
+
+
+<!-- , with constraint $\sum_{i_1}^{F}{p_i}=1$.  -->
+<!-- Within this model, a failure corresponds to the event that the sequenced read is not recognized as $F_i$ and has probability $q_i=(1-p_i)$. The support of the distribution is the set $\{0,1,...,R\}$.  -->
+
+
+<!-- Although arbitrary, after sequencing the $R$ parameter becomes known and  -->
+The proportion of successes of each observed feature, $\widehat{p}_i=\frac{a_i}{R}$, is an estimate of the corresponding binomial probability with variance and covariance equal to $Var\{\widehat{p}_i\}=\frac{p_i(1-p_i)}{R}$ and $Cov\{\widehat{p}_i,\widehat{p}_j\}=-\frac{p_ip_j}{R}$ when $i \ne j$, respectively , thus library size affects precision of the relative abundance estimate: the higher the $R$, the better the precision since the variance is reduced. Being the proportion estimator unbiased, efficient and consistent, also accuracy improves as precision improves because  $\widehat{p}_i$ becomes more consistently close to the parameter $p_i$. 
+<!-- MSE coincides with variance ! -->
+<!-- accuracy depends on variance, which decreases with larger samples.  -->
+Figure \@ref(fig:phatConsistency) shows consistency of the  binomial proportions estimate that provides increasingly accurate values as $R$ grows.  
+
+![Consistency of the proportion estimator of a binomial model. Figures show the distribution of proportions  of $10^5$ realizations of binomial random variables with parameters  $p=0.01$ and four different $R$ values ($3\,000, 5\,000, 10\,000, 20\,000$). Vertical lines represent the minimum $\widehat{p}$ (blue, solid), the mean value of proportions minus 2$\cdot$SD (light-blue, solid) and the a-priori probability value  $p=0.01$ (red, dashed). Consistency of the model is that the higher $R$ the better the estimates since both the mean and the minimum observed proportion and the SD reduce, i.e. the better the accuracy  as well as precision.   \label{fig:phatConsistency}](../MainToBeUpLoad/Figures/phatConsistency.png)
+
+<!-- \begin{figure}[H] -->
+<!-- \includegraphics[width=1\linewidth]{../Data/dataEmi/Figures/BinomialModel/phatConsistency.pdf} \caption{Consistency of the proportion estimator of a binomial model. Figures show the distribution of proportions  of $10^5$ realizations of binomial random variables with parameters  $p=0.01$ and four different $R$ values ($3\,000, 5\,000, 10\,000, 20\,000$). Vertical lines represent the minimum $\widehat{p}$ (blue, solid), the mean value of proportions minus 2$\cdot$SD (light-blue, solid) and the a-priori probability value  $p=0.01$ (red, dashed). Consistency of the model is that the higher $R$ the better the estimates since both the mean and the minimum observed proportion and the SD reduce, i.e. the better the accuracy  as well as precision. } \label{fig:phatConsistency} -->
+<!-- \end{figure} -->
+
+This classic asymptotic analysis of the binomial variable is performed by assuming the theoretical value of the proportion $p_i$ constant and therefore the statistical characteristics of the estimator improve as the number of samples increases. We will refer to this model as the *static* model. Special attention should be given to modeling the counts of the sequencing process using binomial variables. Indeed, 
+<!-- It should be recalled that  -->
+the greater the sequencing depth, $R$, the greater the number of observed features, $\widehat{F}$, due to the increase in the number of rare types that are observed, i.e. with a non-null abundance count. 
+Since the condition $\sum_{i=1}^{\widehat{F}}{p_{i}}=1$ must hold for any value of the sample sequencing depth, when a new feature is revealed thus the values of the proportional abundances are redistributed by lowering the $p_i$ values of the previously recorded features according to the constraint. Therefore, NGS counts are best described by a *dynamic* multinomial model (NuRo from the authors) that considers the compositionality of data by taking into account the relationship between the number of sequences, $R$, and the number of observed independent events (i.e. the number of observed features, $\widehat{F}$). Since the composition of the features is peculiar to each sample, which means a uniqueness of the *a-priori* probability distributions of the features, the number and type of features,  together to  a given value $R$, marks each sequenced sample.
+
+Note that when $R \rightarrow \infty$ the number of observed features, $\widehat{F}$, increases converging to the theoretical sample richness, $F$, and therefore the *dynamic* model tends towards the *static * one. Therefore, unless $\widehat{F}$ is already at $F$, both the number of observed features and their corresponding $p_{i}$ values depend on the sequencing depth, $R$, as well as the accuracy and precision of sample proportions [@fernandes2013anova].
+
+Using the NuRo model helps define the context of differential abundance or gene expression analyses between samples. Since $R$ affects the number of observed feature types and therefore the corresponding a-priori probability values, comparison of feature abundance between samples having different sequencing depths is meaningless since the differential outcome from observed proportions reflects differences in the a-priori probabilities due to the non equal sampling depth that differentiates the feature set (i.e. the microbiome or the genes set). For example, consider two biological replicates, one with a sequencing depth 1000 times the other and the most abundant feature, $F_1$, which is definitely present in both sequences. The *prior* probability of $F_1$ is much lower in the sample with the largest number of reads due to the larger number of rare features captured by the instrument. It follows that comparing the abundance of $F_1$ between  two sequencing is meaningless if samples present large differences in the sequencing depth, while it still makes sense to evaluate the differences between the feature ratios for those features that are detected in both sequencing and are not missing in one of the two files. Thus, rarefaction is highly recommended with differential analyses.
+
+
+Although arbitrary, after sequencing the number of reads per sample, $R$,  becomes a parameter  of the process. The resulting finite number of $R$ affects precision of proportions of detected features, with particular concern to the rares.
+
+Another distinguishing factor of the NuRo binomial model describing NGS sequencing is that features with null-probability or with zero-counts can never be present in the sequencing result of a single sample. In fact, $p_i=0$ means that the feature is definitely absent from the sample and therefore will never be sequenced. On the other hand, since the instrument can only reveal observed characteristics, modeling $a_i=0$ with a non-zero $p_i$ implies some a priori knowledge about the quantitative composition of the biological sample, but this never happens in reality and therefore $a_i > 0$ is always true. This means that a single sample sequencing can be modeled as a Dirichlet-Categorical-Multinomial distribution and thus the support of each count is the set $\{1,...,R\}$ which exclude the zero count.
+<!-- The instrument, in fact, processes the multiplexed DNA or RNA strands as if they came from a single sample since the recognition of the belonging of a strand to a specific sample is guaranteed by the insertion of a specific barcode. -->
+
+Missing features counts occur only when at least two samples are analyzed simultaneously as some features may be unobserved in one of the sequenced samples. In this case, a priori knowledge is needed to determine whether the corresponding missing count is due to the null-probability value of the feature in the sample or to the small number of sequenced reads that fail to ensure a reliable estimate of the binomial proportion. Missing counts must be properly managed based on the required analysis.
+
+
+## Characterization of the logarithm of binomial random variables {#sec:Taylor}
+
+<!-- The Taylor expansion of  $\log(a+\alpha)$ with $\alpha \geq 0, x>0$ about a point $x=\overline{x}$ is: -->
+<!-- \begin{equation*} \label{eq:TaylorSer} -->
+<!-- \log(x + \alpha) = \log(\overline{x} + \alpha) + \frac{1}{\overline{x} + \alpha} (x - \overline{x}) - \frac{1}{2(\overline{x} + \alpha)^2} (x - \overline{x})^2 + O\left(\frac{1}{n^2}\right) -->
+<!-- \end{equation*} and converges for: $|x - \overline{x}| < \overline{x} + \alpha$. -->
+
+Let $x$ be a binomial random variable with probability of success $p_x$ in $R_x$ independent trials, i.e. $x \sim \rm{Bin}(R_x,p_x)$, with support ${1,...,R_x}$. The first two moments of $x$ are  $E\{x\}=\mu_x=p_xR_x$, $Var\{x\}=\sigma_x^2=E\{(x-\mu_x)^2\}=R_xp_x(1-p_x)$, with $E\{\cdot\}$ being the expected value operator.
+
+
+
+Sample proportion, $\widehat{p}_x=\frac{x}{R_x}$ is an efficient consistent unbiased estimator of $p_x$ (see figure \@ref(fig:phatConsistency)) and thus its variance is the lowest possible and equals the Cramer-Rao lower bound, $Var\{\widehat{p}_x\}=CRLB=\frac{p_x(1-p_x)}{R_x}$. The relative variance
+
+\begin{equation} \label{eq:VR}
+RV\{\widehat{p}_x\}=\frac{CRLB}{p_x^2}=\frac{(1-p_x)}{R_xp_x}
+\end{equation}
+
+
+or equivalently the relative standard deviation 
+
+
+\begin{equation} \label{eq:RSD}
+RSD\{\widehat{p}_x\}=\sqrt{RV\{\widehat{p}_x\}}=\sqrt{\frac{(1-p_x)}{R_xp_x}},
+\end{equation}
+
+are normalized metrics useful for comparing the performance of the estimator across different values of $p_x$ and $R_x$. Both are related to the  the dispersion of $\widehat{p}_x$ and  inversely related to the precision of the sample proportion $\widehat{p}_x$: lower $RSD$ indicates higher precision and this happens when $R_x$ is large or when $p_x$ is not too close to 0 or 1. Figure \ref{fig:combined_plot}a shows the behavior of the RSD vs $p_x$ for some $R_x$ values as indicated by the color legend. The horizontal dashed line marks the target $RSD^*$ value equal to $0.1$ which indicates a standard deviation of the sample  proportion equal to the 10% of the sample proportion itself and thus is the RSD level that guarantees that the first non-zero decimal digit of the calculated proportion is the most significant. As an example, if $\widehat{p}_x=0.30$ if its standard deviation is $0.03$, i.e. is 10\% of its value, this  indicates that the second decimal place varies about $\pm 3$ and thus proportion varies within one SD between 0.27 and 0.33. Thus the first decimal digit, which is the first non-zero digit, is also the most  significant digit. The figure highlights that if the goal is to estimate a proportion of approximately 0.01 with an RSD of at least 0.1 then at least $10\,000$ readings are needed (the blue line). Lower proportion values require a greater number of reads to respect the RSD=0.1 constraint, otherwise the variance of the estimate increases.
+
+<!-- Assuming to have moderate $p$ values,  larger sample size $R$ leads to more precise estimate since $RSD$ decreases and being the estimator unbiased, accuracy improves as precision improves because  $\widehat{p}_x$ becomes more consistently close to the parameter $p$.  -->
+<!-- The $RSD$ formula given above can be reverted and used for determining a-priori the maximum level of relative precision that can be obtained with a given sample size, $R$, as reported in Table \@ref(tab:TabCRLB): if $10^4$ reads are available, the lowest proportion value that can be evaluated with a relative SD no larger than 0.10  is p=0.01. On the other hand, if the scope is to evaluate proportions about $0.001$ with the same precision, thus $10^5$ reads are needed.  -->
+
+![Statistical characterization of the logarithm of binomial proportions. (a): Relative standard deviation, RSD, of sample proportion $\widehat{p}_x$ vs theoric probability, $p_x$, for different sequencing depth, $R$, values. Horizontal dashed gray line marks RSD=10\%. Vertical gray dashed line marks the proportion value 0.01. (b): Logarithm of a binomial variable, $log(x)$, is asymptothycally unbiased. Plot shows relative bias $(E\{log(x)\}-log(x))/log(x)$  vs sequencing depth, $R$, for some probability values of a positive binomial random varible. Solid lines refer to results over 1 million synthesized data, dashed lines refer to the error $(1-p_x)/(R_xp_x)$.](../MainToBeUpLoad/Figures/combined_plot.png){#fig:combined_plot}
+
+
+<!-- \begin{figure}[H] -->
+<!--     \centering -->
+<!--     \begin{minipage}{0.45\textwidth} -->
+<!--     \vspace{0pt} % Assicura allineamento in alto -->
+<!--         \centering -->
+<!--         \includegraphics[width=1\linewidth]{../Data/dataEmi/Figures/BinomialModel/RSDvsp.pdf}  -->
+<!--         \caption{Relative standard deviation, RSD, of sample proportion $\widehat{p}_x$ vs theoric probability, $p_x$, for different R values.  -->
+<!--         Horizontal dashed gray line marks RSD=0.1 which is the relative standard deviation that ensures that the first non-zero decimal digit is the most significant.  -->
+<!--         Vertical gray dashed line marks the proportion value 0.01 which can be estimated with RSD no larger than 0.1 if at least 10000 reads (blue line) are used.}  -->
+<!--         \label{fig:RSDvsp} -->
+<!--     \end{minipage} -->
+<!--     \hfill -->
+<!--     \begin{minipage}{0.45\textwidth} -->
+<!--     \vspace{0pt} % Assicura allineamento in alto -->
+<!--         \centering -->
+<!--         \includegraphics[width=1\linewidth]{../Data/dataEmi/Figures/BinomialModel/TaylorErrorExpVal.pdf}  -->
+<!--         \caption{Logarithm of a binomial variable, $log(x)$, is asymptothycally unbiased. Plot shows relative bias $(E\{log(x)\}-log(x))/log(x)$  vs sequencing depth, $R$, for some probability values of a positive binomial random varible. Solid lines refer to results on 1 million synthesized data, dashed lines refer to the error $(1-p_x)/(R_xp_x)$.}  -->
+<!--         \label{fig:TaylorErrorExpVal}     -->
+<!--     \end{minipage} -->
+<!-- \end{figure} -->
+
+
+<!-- \begin{figure}[ht] -->
+<!-- \includegraphics[width=1\linewidth]{../Data/dataEmi/Figures/BinomialModel/RSDvsp.pdf} \caption{Plot of RSD vs $p_x$ for different R values (log-scales). Horizontal dashed gray line marks RSD=0.1 which is the relative standard deviation that ensures that the first non-zero decimal digit is the most significant. Vertical gray dashed line marks the proportion value 0.01 which can be estimates with RSD no larger that 0.1 if  at least 10000 reads (blue line) are used.} \label{fig:RSDvsp} -->
+<!-- \end{figure} -->
+
+
+```{r, eval=FALSE}
+#Table RSD. Moved from paragraph ## Characterization of the logarithm binomial random variables {#sec:Taylor}
+
+rm(list = ls())
+
+library(knitr)
+library(kableExtra)
+
+p_v = c(seq(0.05, 0.01, by = -0.02),seq(0.008, 0.004, by = -0.002))
+R_v = c(3000, 5000, 10000, 20000)
+VR_v= c(1e-6,1e-4,1e-2)
+
+# Function to calculate p given Ratio and R
+calculate_CLRB <- function(p, R) {
+  p*(1-p)/R
+} ###***
+# Function to calculate p given Ratio and R
+calculate_p <- function(VR, R) {
+  1 / (VR * R + 1)
+}
+
+df1 <- data.frame(
+  VR = rep(VR_v, times = length(R_v)),
+  R = rep(R_v, each = length(VR_v)),
+  p = unlist(lapply(R_v, function(R) calculate_p(VR_v, R)))
+  )%>%
+  mutate(CLRB=VR*p^2)%>%
+  mutate(RSD=sqrt(VR))%>%
+  mutate(sqrtCRLB=sqrt(CLRB))%>%
+  mutate(SD=RSD*p)
+
+df <- data.frame(
+  p = rep(p_v, times = 4),
+  R = rep(R_v, each = length(p_v)),
+  CLRB = unlist(lapply(R_v, function(R) calculate_CLRB(p_v, R)))
+  )%>%
+  mutate(VR=CLRB/p^2)%>%
+  mutate(RSD=sqrt(VR))
+
+
+df <- data.frame(lapply(df, function(x) format(x, scientific = TRUE, digits = 2)))
+df1 <- data.frame(lapply(df1, function(x) format(x, scientific = TRUE, digits = 2)))
+
+df1<-df1%>%dplyr::select("R","RSD","p","VR","CLRB","SD")
+# Creazione della tabella
+table_latex <- kable(df1, format = "latex", booktabs = TRUE, digits = 2, 
+                     col.names = names(df1), 
+                     caption = "Table of CLRB, VR e RSD for many values of p and R. \\label{tab:TabCRLB}") %>%
+  kable_styling(latex_options = c("hold_position", "scale_down"))
+
+table_latex
+
+```
+
+
+<!-- \begin{equation} \label{eq:CVp} -->
+<!-- CRLB/p^2 = CV(p)= \frac{1-p_x}{R_xp_x}  -->
+<!-- \end{equation} -->
+
+
+<!-- \begin{equation} \label{eq:pCV} -->
+<!-- p = \frac{1}{R_x(CRLB/p_x^2+1)}  -->
+<!-- \end{equation} -->
+
+
+
+<!-- Being $\widehat{p}$ an unbiased, efficient and consistent estimator, low variance (high precision)   contributes also to higher accuracy since consistent estimates (precise) converge asymptotically to $p$.  -->
+<!-- higher precision (lower relative standard error) can help improve the overall accuracy since the estimates will tend to be closer to the true value  p -->
+<!-- The bias due to the limited number of trials, $R$, is $\frac{x}{R_x}-p_x$ -->
+
+In order to evaluate the expected value of $\log(x)$, the Taylor expansion about the expected value of $x$ up to the second order is used
+<!-- \begin{equation} \label{eq:TaylorSer} -->
+<!-- \log(x + \alpha) = \log(\mu_x + \alpha)  + \frac{ (x - \mu_x)}{\mu_x + \alpha}  - \frac{(x - \mu_x)^2}{2(\mu_x + \alpha)^2}   + O\left(\frac{1}{R_x^2}\right) -->
+<!-- \end{equation} -->
+thus obtaining:
+<!-- By applying the expected value to both members of eq. \@ref(eq:TaylorSer), the following holds true: -->
+\begin{equation*} \label{eq:TaylorSerEV}
+E\{\log(x)\} \simeq \log(R_xp_x) - \frac{Var\{x\}}{2(p_xR_x)^2} \simeq \log(R_xp_x) - \frac{(1 - p_x)}{2p_xR_x}
+\end{equation*}
+
+\begin{equation*} \label{eq:TaylorSerVar}
+Var\{\log(x)\} \simeq \frac{(1 - p_x)}{p_xR_x}
+\end{equation*}
+
+
+<!-- Var\{\log(x + \alpha)\} \simeq  \frac{\sigma_x^2}{(\mu_x+\alpha)^2} -->
+<!-- \begin{equation*} \label{eq:TaylorSerVarV} -->
+<!-- Var\{\log(x + \alpha)\} \simeq \frac{(1-p_x)}{(R_xp_x)} -->
+<!-- \end{equation*} -->
+
+In order to verify that the second order approximation is  enough is for evaluating expected value for large $R_x$, simulated data over 1 million synthesized data are presented in  figure \ref{fig:combined_plot}b with solid lines  vs $R_x$ for many $p$ parameters. Simulated and theoretical results are almost overlapping.  The bias $\left|\frac{(1 - p_x)}{2p_xR_x}\right|$ depends on the sequencing depth and confirm that logarithm of a binomial abundance is asymptotically  unbiased (dashed line in figure \ref{fig:combined_plot}b).  
+
+<!-- Thus,  -->
+<!-- <!-- equation \@ref(eq:TaylorSerEV)  states that --> -->
+<!-- $\log(x)$ is an asymptotically unbiased estimator of $\log(R_xp_x)$. -->
+
+<!-- \begin{figure}[ht] -->
+<!-- \includegraphics[width=1\linewidth]{../Data/dataEmi/Figures/BinomialModel/TaylorErrorExpVal.pdf} \caption{pHat consistency} \label{fig:TaylorErrorExpVal} -->
+<!-- \end{figure} -->
+
+
+
+## Geometric mean of mutinomial data  {#sec:GeomMean}
+
+<!-- $\log G(\mathbf{a}) = \frac{1}{\widehat{F}}\sum_{i=1}^{\widehat{F}}{\log a_{ij}}$ -->
+Geometric mean of multinomial proportions as modeled in sec. \@ref(sec:DMMod) is:
+
+$$ G(\mathbf{p}) = \exp\Big(\sum_{i=1}^{\widehat{F}}{\log p_{i}^{1/\widehat{F}}}\Big)$$
+
+and  goes to zero if a large number of rares is included, i.e. a large sequencing depth is used, due to their small proportion value. In order to appreciate this behavior and to relate it to the increasing $\widehat{F}$ due to revealed rares, data counts of a single sample synthesized according to a multinomial Dirichlet distribution under three different conditions are shown in figure \ref{fig:GMMultiNom}. In particular, count data of one biological sample sequenced with different levels of sequencing depth ($R$ equal to $2\,000$, $5\,000$, $10\,000$) and that reveals different number of features ($\widehat{F}$ equal to 42, 64, and 106, respectively) are simulated as potential use cases for microbiome studies (simulating species abundance distributions at different sequencing depths), RNA-seq data (modeling gene expression variability between samples), or ecological studies (simulation of species abundance distributions in different environments). This is a paradigmatic example to emphasize the effects of sequencing depth on GM values both when considering a unique biological sample for which 3 successive phases of a single sequencing are reported, and when considering the sequencing of 3 different biological samples each with its own sequencing depth.
+
+In particular, relative counts of features ordered by abundance are represented  in figure  \ref{fig:GMMultiNom}a vs the feature index, k, for each sequenced depth according to the color legend and shows that number of counts of each feature increases with $\widehat{R}$. For each feature and for each dataset, the corresponding a-priori probability and estimated sample proportions are shown in figure \ref{fig:GMMultiNom}b with solid and dashed line, respectively. The most abundant features present a proportion value that decreases with $R$ due to the sum to 1 constraint to which proportions are subjected. On the other hand, rares presents proportion values that increase with $R$. When we need to evaluate differential abundance among the three samples, the union of the features revealed in each sample is considered and thus, for this simulated dataset, is the set of features of the red data. Due to the different sequencing depth, blue and green data have missing features with respect to the red one and thus a pseudocount is needed for each feature in each samples involved in the comparison.  When log-based data transform as the GM are used, a '1' pseudocount is usually added to each feature and thus counts are modified as shown by the gray tiles on the top of the count barplots shown  in figure \ref{fig:GMMultiNom}c. 
+<!-- shows barplot of relative counts vs the feature index, k, without (colored as in as in figure \@ref(fig:CountVsFk)) and with '1' pseudocount (the gray tile is the pseudocount added  to each feature).  -->
+The cumulative geometric mean evaluated over proportions in each dataset (according to colors as in as in figure \ref{fig:GMMultiNom}a) up to each feature after their decreasing abundance sorting, is plotted in figure \ref{fig:GMMultiNom}d vs the cumulative sample proportion. Light colored lines refer to cumulative GM evaluated on each sample feature set without any pseudocunt, dark colored lines refer to GM evaluated after adding a '1' pseudocount to each feature. The light gray dots emphasize the features missing in the corresponding sample whose abundance was set equal to 1 count for comparison purposes, implicitly indicating that the feature is missing because it is rarer than those already detected in the sample. The cumulative GM represent, at each feature index k, the GM evaluated on the k most abundant features and is equal to the sample GM when the cumulative proportion saturates. The effects of pseudocounting reduce on GM as $R$ increases, and regardless of sequencing depth, GM decreases with the number of rares included in the sample.   
+In particular, when the abundance of missing features are replaced by the pseudocount to compare all samples on the same set of characteristics, even the GM of the blue sample, which has the lowest number of reads, converges towards zero. Furthermore, the largest the number of missing feature the lowest the GM. It follows that if the sequenced samples contain a large number of rares, the GMs of each sample are similar to each other and close to zero and therefore the GM, in addition to being a reference for each individual sample, is a good candidate also as the reference for log-abundance of all samples. Therefore, if samples have a high number of rares, clrs can be used to compare feature abundances between samples since they are related to reference frame values that are very close to each other. 
+
+
+
+![Multinomial Dirichlet counts synthesized under three different  sequencing depths $R$ ($2\,000$ (blue), $5\,000$ (green), $10\,000$ (red)) each with its number of features $F_k$ ($42$, $64$, and $106$, respectively) as potential use cases for microbiome studies, RNA-seq data or ecological studies. The features are ordered from most abundant to rarest. a: Scatter plot of relative counts vs index of ordered features. Black dashed line is at $a_k=3$. b: Scatter plot of relative proportions and probabilities of features vs index of ordered features. c: Barplot of relative counts without and with (gray box) '1' pseudocount vs index of ordered features. d: Scatter plot of cumulative GM of relative proportions  of features evaluated without (light color) and with '1' pseudocount (dark color) vs the cumuative sample proportion. The small box shows detailes for rares with grey dots emphasizing contribution of the '1' pseudocount.](../MainToBeUpLoad/Figures/MutinomialCombined.png){#fig:GMMultiNom}
+
+
+
+<!-- \begin{figure}[H] -->
+<!--     \centering -->
+<!--     % Immagine (a) -->
+<!--     \begin{minipage}{.45\linewidth} -->
+<!--         \centering -->
+<!--         \includegraphics[width=1\linewidth]{../Data/dataEmi/Figures/GeometricMean/CountVsFk.pdf} -->
+<!--         \subcaption{Scatter plot of relative counts vs index of ordered features. Black dashed line is at $a_k=3$} -->
+<!--         \label{fig:CountVsFk} -->
+<!--     \end{minipage} -->
+<!--     \hfill -->
+<!--     % Immagine (b) -->
+<!--     \begin{minipage}{.45\linewidth} -->
+<!--         \centering -->
+<!--         \includegraphics[width=1\linewidth]{../Data/dataEmi/Figures/GeometricMean/PropVsFk.pdf} -->
+<!--         \subcaption{Scatter plot of relative proportions and probabilities of features vs index of ordered features.} -->
+<!--         \label{fig:PropVsFk} -->
+<!--     \end{minipage} -->
+<!--         \hfill -->
+<!--    \centering -->
+<!--     % Immagine (c) -->
+<!--     \begin{minipage}{.45\linewidth} -->
+<!--         \centering -->
+<!--         \includegraphics[width=1\linewidth]{../Data/dataEmi/Figures/GeometricMean/DirMultNomA.pdf} -->
+<!--         \subcaption{Barplot of relative counts without and with (gray box) '1' pseudocount vs index of ordered features.} -->
+<!--         \label{fig:DirMultNomA} -->
+<!--     \end{minipage} -->
+<!--     \hfill -->
+<!--     % Immagine (d) -->
+<!--     \begin{minipage}{.45\linewidth} -->
+<!--         \centering -->
+<!--         \includegraphics[width=1\linewidth]{../Data/dataEmi/Figures/GeometricMean/GMcumsumVsCumSumpHatZ1.pdf} -->
+<!--         \subcaption{Scatter plot of cumulative GM of relative proportions  of features evaluated without (light color) and with '1' pseudocount (dark color) vs the cumuative sample proportion. The small box shows detailes for rares with grey dots emphasizing contribution of the '1' pseudocount.} -->
+<!--         \label{fig:GMcumsumVsCumSumpHatZ1} -->
+<!--     \end{minipage}    % Caption globale -->
+<!--     \caption{Multinomial Dirichlet counts synthesized under three different  sequencing depths $R$ (2000 (blue), 5000(green), 10000(red)) each with its number of features $F_k$ (42, 64, and 106, respectively) as potential use cases for microbiome studies, RNA-seq data or ecological studies. The features are ordered from most abundant to rarest. } -->
+<!--     \label{fig:GMMultiNom} -->
+<!-- \end{figure} -->
+
+It follows that metrics that uses GM as the abundance reference level, reduces the dependency from the number of reads if a sufficiently large sampling depth is used.
+
+
+
+
+
+## CLR {#sec:CLR}
+
+Clr is an abundance normalization method that uses the geometric mean as a scaling factor and then applies logarithmic transformation to the resulting ratio.  In particular, the estimated WS-clr of multinomial counts as modeled  in sec. \@ref(sec:DMMod) is evaluated as:
+
+$$\widehat{\rm{clr}}_i=\log\Big(\frac{a_i}{G(\mathbf{a})}\Big)$$
+where the WS-GM is $G(\mathbf{a})=\left(\prod_{i=1}^{\widehat{F}}a_i \right)^{\frac{1}{\widehat{F}}}$ and it represents an estimate of the average concentration of features present in the sample and reduces the weight of the most abundant characteristics. 
+
+An important property of the clr is the scale invariance which allows the evaluation of the clr using either absolute abundances or relative proportions [@aitchison1982statistical, @egozcue2019compositional]. Focusing attention on the WS-clr, it is straightforward to show the invariance of clr with respect to the sample sequencing depth, i.e. $\widehat{\rm{clr}_i}=\log\Big(\frac{a_i}{G(\mathbf{a})}\Big)=\log\Big(\frac{\widehat{p}_i}{G(\mathbf{a})/R}\Big)$, and therefore the WS-clr can be assessed by using both absolute abundances and relative sample proportions.
+
+
+<!-- It should be recalled that the greater the sequencing depth, $R_{Tj}$, the greater the number of observed features, $\widehat{F}_{\text{@}L}$, due to the increase in the number of rare types that are observed, i.e. with a non-null abundance count.  -->
+<!-- Since the condition $\sum_{i_{\text{@}L}=1}^{\widehat{F}_{\text{@}L}}{p_{i_{\text{@}L}|j}}=1$ must hold for any value of the sample sequencing depth, when a new feature is revealed thus the values of the proportional abundances are redistributed by lowering the $p_{i|j}$ values of the previously recorded features according to the constraint. Please note that when $R_{T,j} \rightarrow \infty$ also the number of observed feature, $\widehat{F}_{\text{@}L}$, increases converging to the theoretical sample richness, $F_{i_{\text{@}L}}(j)$. Therefore, unless $\widehat{F}_{i_{\text{@}L}}$ is already at $F_{i_{\text{@}L}}(j)$, all $p_{i|j}$ values depend on the sequencing depth, $R_{T,j}$ and the accuracy of sample proportion is related to number of counts  [@fernandes2013anova]. -->
+
+Another important attribute of clr is that it asymptotically estimates feature abundance. In fact, <!-- In order to evaluate the expected value of the abundance expressed as $clr$, each log-term is substituted  -->
+let us examine the within–sample  $\rm{clr}$ of the $i$--th feature abundance. Recalling the binomial model  for the feature count (see sec. \@ref(sec:DMMod)) and substituting each log-term by the Taylor series expansion about the expected value (see sec. \@ref(sec:Taylor)),  thus expected values of the feature abundance, of its logarithm and of the logarithm of the geometric mean can be approximated as follows:
+
+<!-- by considering $S_{\textcolor{gray}{j}}$ and a binomial model for $a_{\textcolor{gray}{(i_{\text{@}L},j)}}$: -->
+
+$E\{a_i\}=p_iR$
+
+<!-- $E\{\log(a_{\textcolor{gray}{(i_{\text{@}L},j)}}) \simeq \log(p_{\textcolor{gray}{i_{\text{@}L}|j}}R_{\textcolor{gray}{T,j}})-\frac{1-p_{\textcolor{gray}{i_{\text{@}L}|j}}}{2p_{\textcolor{gray}{i_{\text{@}L}|j}}R_{\textcolor{gray}{T,j}}}\rightarrow \log(a_{\textcolor{gray}{(i_{\text{@}L},j)}})$ -->
+
+$E\{ \log(a_i) \} \simeq \log(p_iR) -  \frac{(1 - p_i)}{2p_iR}$
+
+\begin{flalign*}
+E\big\{\log(G(\mathbf{a})\big\} &=  \frac{1}{\widehat{F}}\sum_{m=1}^{\widehat{F}}{E\big\{ \log(a_m)\big\}} \simeq  \frac{1}{\widehat{F}}\sum_{m=1}^{\widehat{F}}{\Big(\log(p_mR ) -  \frac{(1 - p_m)}{2p_mR} \Big)} \\
+&\simeq \log(G(\mathbf{a}) - \frac{1}{\widehat{F}}\sum_{m=1}^{\widehat{F}}{\frac{(1 - p_m)}{2p_mR}}.
+\end{flalign*}
+
+
+As a consequence:
+
+\begin{equation} \label{eq:ExpClr}
+E\big\{\widehat{\rm{clr}}_i\big\}= E\{ \log(a_i) \} - E\big\{\log(G(a)\big\} \simeq \rm{clr}_i - \frac{(1 - p_i)}{2p_iR} + \frac{1}{\widehat{F}}\sum_{m=1}^{\widehat{F}}{\Big(\frac{1 - p_m}{2p_mR}\Big)}
+\end{equation}
+
+Equation \@ref(eq:ExpClr) shows that $\rm{clr}$ is an asymptotic estimator of feature abundance since the last  terms goes toward zero as the sample sequencing depth increases.
+ 
+ 
+It follows that, if $R$ is sufficiently large, although the number of observed features lays below the sample richness, $F$, clr is an unbiased sample abundance estimator. 
+
+
+<!-- In order to evaluate the precision of the clr estimate, the asymptotic behavior of the relative bias of the log-transformed abundance is reported in Fig  -->
+
+## Math Notation. 
+
+
+A column vector with $N$ elements is denoted by boldface letters as $\mathbf{x}=[x[1],x[2],...x[i],...,x[N]]^T$ where $x[i]$ is the $i$-th element of the vector and the operator $[\cdot]^T$ is the transpose vector.
+
+$\hat{\theta}$ is the estimate of the parameter $\theta$.
+
+# Generative AI section  {#sec:AIGen}
+
+Practical examples on how to query AI tools for evaluating accuracy and precision of sample proportion estimate or reproduce data of the saliva experiment shown in this paper are reported in the supplementary materials AI_prompt.docx. 
+
+The same prompt has been given to chatgpt, DeepSeek and Claude and the corresponding outcomes have been recorded.
+
+The list of queries:
+
+\footnotesize
+1.	By considering the formula of the relative standard deviation of a proportion value estimated over $R$ counts, $RSD=\sqrt{(1-p)/(pR)}$, give the lowest proportion value that can be evaluated with a target $RSD^*$  no larger than 0.10 when $R=10\,000$ and when $R=100\,000$. Round the outcome to the first significant digit according the $RSD$.
+
+2. By considering the formula of the relative standard deviation of a proportion value estimated over $R$ counts, $RSD=\sqrt{(1-p)/(pR)}$, give the minimum number of reads needed for estimating proportions about $0.001$ with target $RSD^*$ no larger than $10\%$.
+
+
+\normalsize
+
+<!-- at https:// ... work in progres..... for at least two programming languages (R, python, ). -->
+
+# References
+
+
+
+```{r}
+knitr::knit_exit()
+```
+
+
+## Mathematical notation
+
+A mathematical model is proposed that describes the feature table counts obtained after quality filtering of the data obtained from an NGS sequencing process. A formal notation of the results helps to identify and compare the overall and marginal summary statistics and to choose the most appropriate analysis tool, data transform or  normalization domain, based on the scope of the analysis required, thus easing the reproducibility data processing utcomes. Furthermore, a statistical characterization is provided to describe algorithms that overcome or compensate for the biases introduced by the inference process applied to the compositional data, thus facilitating the setup of the workflow and therefore the reproducibility of the analyses. A particular emphasis is given to missing data that are explicitly indicated as *NA*. Within this notation the ratio, rank, logarithmic ratio, reference data frame and sampling fraction are defined.
+
+## Missing data management {#sec:MissData}
+
+Sparsity of NGS data is known to be critical issue for managing benchmarking tools. The sparsity is due, however, to the attribution of zeros to the missing features. In fact, if a single sample is sequenced, thus all features counts are non-null since the instrument cannot reveal what is not sequenced. If more than one sample is considered in a feature table, thus some characteristics may be only in a sample while missing in at least one of the others. Each sample contributes to the ecosystem composition with its own feature and the union of samples defines the entire set of features used for benchmarking. When target sequencing is used, the feature set is the microbiome, when RNA-seq is used the feature set is genes. GIUSTIFICARE I MISSING DATA CON BIBLIO. In this paper not available (*NA*) data  are indicated with "-" in the proposed model of the feature table and the most pertinent  pseudo-count, "0", "1" or whatever, is added to the table elements, if appropriate or necessary based on the type of analysis required. In fact, ignoring *NA* in the evaluation of summary statistics is equivalent to excluding missing features from the composition and evaluating the sample as if it were sequenced alone. Using pseudocounting instead allows missing features to be included in the compositional evaluation but may influence the value of some of the summary statistics compared to ignoring *NA*. The difference between the results is often considered a bias, but in reality the addition of the pseudocunt serves the purposes of the analysis. For example, ignoring *NA* or adding the pseudocount "0" to all feature counts, the values of the sample proportions do not change but the average values of the counts are affected more significantly the greater the number of *NA*, i.e. of zeros. Furthermore, considering statistics on log-transformed data, the pseudocunt "0" is not allowed and the value "1" is generally inserted instead. Also in this case the sample average values are more altered the greater the number of missing data, i.e. of ones, compared to the case of ignoring the *NA*.
+
+The two statistics, without and with pseudocount,  refer to completely different feature compositions that must be considered specifically and therefore their difference cannot be classified as bias.
+
+
+## NGS feature table {#Sec:TableAL}
+
+The sequencing outcome of a set of samples, $\mathbf{S}=\{S_1,...,S_S\}$, is described by a feature table, **A**, i.e. a table with the counts of each feature detected in each sample after appropriate quality filtering of raw reads. When taxonomies present hierarchical structure, the feature table can be clustered based on the taxonomic level, if required by the specific analysis, and thus **$\mathbf{A_{\text{@}L}}$** indicates the table clustered at level $L$ where each feature index is labeled with a subscript '$\text{@}L$'. A template representation of such a table is given in Fig. \@ref(fig:FeatTab).
+
+Aggiungere Summary stats and missing data treatment !!!
+
+\begin{figure}[ht]
+\includegraphics[width=0.9\linewidth]{./Tables/TableModel.png} \caption{\label{fig:FeatTab}Table**$\mathbf{A_{\text{@}L}}$**: representation of a feature table at taxonomic level $L$.}\label{fig:FeatTab}
+\end{figure}
+
+
+Elements of the feature table at level $L$, $a_{\textcolor{gray}{(i_{\text{@}L},j)}}$, represent the observed absolute abundance of the $i-th$ feature at level $L$, $F_{\textcolor{gray}{i_{\text{@}L}}}$, in the $j-th$ sample $S_{\textcolor{gray}{_j}}$, i.e. is the frequency of $F_{\textcolor{gray}{i_{\text{@}L}}}$ in $S_{\textcolor{gray}{_j}}$.  The $i-th$ row is a row vector with $S$ elements represented by
+<!-- $\mathbf{A_{\text{@}L}}[i,]=[a(i_{\text{@}L},1),...,a(i_{\text{@}L},j),...,a(i_{\text{@}L},S)]$ -->
+$\mathbf{A_{\textcolor{gray}{\text{@}L}}}[i_{\textcolor{gray}{\text{@}L}},]=\left[a_{\textcolor{gray}{(i_{\text{@}L},1)}}, \dots, a_{\textcolor{gray}{(i_{\text{@}L},j)}}, \dots, a_{\textcolor{gray}{(i_{\text{@}L},S)}}\right].$
+The $j-th$ column is a  vector with $\widehat{F}_{\textcolor{gray}{\text{@}L}}$ elements representd by $\mathbf{A_{\textcolor{gray}{\text{@}L}}}[,j]=[a_{\textcolor{gray}{(1,j)}},...,a{\textcolor{gray}{(i_{\text{@}L},j)}},...,a_{\textcolor{gray}{(\widehat{F}_{\text{@}L},j)}}]^T$. 
+
+
+The number of type of observed features at taxonomic level $L$ in the table $\mathbf{A_{\textcolor{gray}{\text{@}L}}}$ is indicated with $\widehat{F}_{\textcolor{gray}{\text{@}L}}$ and is an estimate of the richness of sequenced samples, $F_{\textcolor{gray}{\text{@}L}}$, whose accuracy is related both to  the sequencing depth and to the taxonomies distribution, as detailed below. 
+
+After the quality filtering process, the set of sequenced features at taxonomic level $L$ defines the observed microbiome, which is indicated with 
+<!-- $\mathbf{F_{@L}}$, has richness equal to $F_{@L}$ and is formed by the set of sequenced features $F[i_{@L}]$ with index $i_{@L}=1_{@L},2_{@L},...,F_{@L}$, i.e. -->
+$\mathbf{\widehat{F}_{\textcolor{gray}{@L}}}=[F_{\textcolor{gray}{(1_{@L})}},F_{\textcolor{gray}{(2_{@L})}},...,F_{\textcolor{gray}{(i_{@L})}},...,F_{\textcolor{gray}{(\widehat{F}_{@L})}}]^T$, being $F(i_{\textcolor{gray}{@L}})$ the $i_{\textcolor{gray}{@L}}$-th taxon at level $L$ and $i_{\textcolor{gray}{@L}}=1_{\textcolor{gray}{@L}},2_{\textcolor{gray}{@L}},...,\widehat{F}_{\textcolor{gray}{@L}}$ the integer indexes up to the observed sample richness, $\widehat{F}_{\textcolor{gray}{@L}}$. 
+
+Last column of Table in Fig. \@ref(fig:FeatTab) summarizes the number of reads, $R_{\textcolor{gray}{({i_{\text{@}L},T)}}}$, recorded for each feature $F_{\textcolor{gray}{i_{\text{@}L}}}$ in the considered set of samples $\mathbf{S}$ and represents the absolute abundance in the sequenced ecosystem. It should be noted that the minimum observed count in the whole sequencing is equal to 1, i.e. $R_{\textcolor{gray}{({i_{\text{@}L}},T)}} > 0$ for all features at whatever taxonomic level.
+
+Due to the hierarchical structure of the taxonomic database, the feature abundances from SV to phylum are columnwise sorted in ascending order, i.e. $a_{\textcolor{gray}{(i_{@SV},j)}} \le  a_{\textcolor{gray}{(i_{6},j)}} \le a_{\textcolor{gray}{(i_{@5},j)}}  \le ... \le a_{\textcolor{gray}{(i_{@1},j)}}]$ for each $j$. The sample sequence depth, that for a 16S sequencing is the total number of SVs, is given by $R_{\textcolor{gray}{(T,j)}}=\sum_{i=1}^{\widehat{F}}{a_{\textcolor{gray}{(i_{@L},j)}}}$ and represents the so called sample library size which is used to estimate the relative abundance of each feature. Last line of the table shows the sequencing depth for each sample. 
+
+It is worth to recall that when counts within a biological sample is obtained by sequencing platforms, the number of DNA molecules of the analyzed ecosystem (also referred to as total sample microbial load) are sequenced after a random subsampling [@gloor2017microbiome]. It follows that the instrument detects the most probable features, together to some rares, respecting their mutual compositional relationships. Moreover, since the sequenced number of counts recorded is constrained by the total library size, absolute observed abundances depends on chemistry of the assay and not the input material and thus is arbitrary [@quinn2018understanding].  Quality filtering applied  to raw data after sequencing is a further subsampling process needed for removing reads mostly affected by random errors accumulated in the sample processing workflow. 
+<!-- When more than one samples are sequenced simultaneously, barcodes are inserted in order to identify a-posteriorir eads attaining to each sample and the sampling process is run as as the in the instrument is present only one sample. It follows that abundance of features present in the whole sequencing respect their mutual proportions and thus, once features are assigned to each sample, also the samples library sizes represent the abundance of the samples and respct mutual proprtions.   -->
+When more than one samples are sequenced simultaneously, barcodes are inserted into the DNA to subsequently identify the sample they belong to, and the sequencing process is performed as if there were a single sample. It follows that the abundance of features present in the entire sequencing respects mutual composition without considering the sample of origin. Once features are reassigned to each sample, the abundance in each sample is redistributed based on the barcodes. Therefore the size of the sample library, $R_{\textcolor{gray}{(T,j)}}$, represents the abundance in each sample, and since compositions among samples are respected, thus ratios between two library sizes respect the ratio between the corresponding samples microbial loads. See section \@ref(sec:BayesTh) for formal proof.
+<!-- the result of DNA sequencing is a subsampling of the molecules of the analyzed ecosystem which is performed randomly [@gloor2017microbiome]. -->  
+ 
+Since the absolute counts are not related to the original number of molecules of the biological samples, some sort of normalization is necessary (with respect to a summary statistic, rarefaction or otherwise), and particular attention must also be paid to the normalization domain (with respect to the features, to samples or sequencing) most appropriate to apply as detailed in the section \@ref(sec:Normalization). In any case, whatever the normalization method or the normalization domain, by assuming the feature counts follow a binomial distribution as decribed in sec. \@ref(sec:BinMod), an unbiased estimator of the proportion of the $i_{\textcolor{gray}{@L}}$-th taxon is given by the absolute count normalized to the corresponding domain library size. Thus, the precision of sample proportional abundance estimates is governed by the library size value [@gloor2017microbiome].
+
+
+
+## Normalization and summary domains {#sec:Normalization}
+
+The major  domains across which the absolute abundance feature table $\mathbf{A_{\text{@}L}}$ can be summarized and/or normalized are: 
+
+- within-sample (across-features): summary stats and normalization factors are evaluated on each column;
+- across-samples (within-features): summary stats and normalization factors are evaluated on each row;
+- whole-table: summary stats and normalization factors are evaluated acroos the whole table;
+- across-groups (within/across-samples within-across-features): summary stats and normalization factors are evaluated in subgroups of samples or features.
+
+These domains are closely related to each other, marginal statistics of each normalized table can be used to summarize an entire sequencing or its subgroups, to determine cluster signatures based on feature abundances, and to compare sample composition of clusters. Since the data are compositional, the chosen  normalization method affects the summary statistics and therefore must be carefully selected based on the purposes of the analyses.
+Figure \@ref(fig:Norm) shows as an example the normalization of the abundance to the total sum of reads that can be evaluated in each of the three domains indicated above. The use of each of these sums as a normalization factor to the absolute abundance value $a(i_{\textcolor{gray}{\text{@L}}},j)$, defines the estimate of a corresponding proportion described below:
+
+- $p_{\textcolor{gray}{(i_{\text{@}L}|j)}}$ is the within-sample proportion of $F{{\textcolor{gray}i_{\text{@}L}}}$ that is probability that a sequenced read, known to be in sample $S_{\textcolor{gray}{j}}$, is the feature $F{\textcolor{gray}{i_{\text{@}L}}}$; the corresponding estimate is $\widehat{p}_{\textcolor{gray}{(i_{\text{@}L}|j)}}=a_{\textcolor{gray}{(i_{\text{@}L},j)}}/R_{\textcolor{gray}{(T,j)}}$.
+- $p_{\textcolor{gray}{(j|i_{\text{@}L})}}$ is the across-sample proportion of $F_{\textcolor{gray}{i_{\text{@}L}}}$ that is the the probability that a read, identified as $F_{\textcolor{gray}{i_{\text{@}L}}}$, is in the sample $S_{\textcolor{gray}{j}}$; the corresponding estimate is $\widehat{p}_{\textcolor{gray}{(j|i_{\text{@}L})}}=a_{\textcolor{gray}{(i_{\text{@}L},j)}}/R_{\textcolor{gray}{(i_{\text{@}L},T)}}$.
+- $p_{\textcolor{gray}{(i_(\text{@L},j)}}$ is the proportion of $F_{\textcolor{gray}{i_{\text{@}L}}}$  evaluated over the entire table that is the probability that  the read is the feature $F{\textcolor{gray}{i_{\text{@}L}}}$ and is in sample $S_j$; the corresponding estimate is $\widehat{p}_{\textcolor{gray}{(i_{\text{@}L},j)}}=a_{\textcolor{gray}{(i_{\text{@}L},j)}}/R_{\textcolor{gray}{(T,T)}}$.
+
+- Aggiungere le probabilità marginali, la prevalenza (solo quando si confrontano campioni !), statistiche marginali (AM,GM)
+
+<!-- These three conditional probabilities are related as follows: $p(i_{\text{@}L},j)=p(i_{\text{@}L}|j)p(j)=p(j|i_{\text{@}L})p(i_{\text{@}L})$, where $p(j)$ and $p(i_{\text{@}L})$ are the probabilities that a read is in $S_j$ and that it is  $F(i_{\text{@}L})$, respectively. -->
+
+
+\begin{figure}[ht]
+\includegraphics[width=0.8\linewidth]{./Tables/Norm.png} \caption{\label{fig:FeatTab}Table $\mathbf{A_{\textcolor{gray}{\text{@}L}}}$: normalization with respect to each sample $S_{\textcolor{gray}{j}}$, to each feature $F_{\textcolor{gray}{i_{\text{@}L}}}$, and to the whole sequencing.}\label{fig:Norm}
+\end{figure}
+
+
+Similarly, further normalization methods use summary statistics other than the total sum of readings, such as arithmetic mean, geometric mean, abundance of a presumed invariant feature, rarefaction, ... Such statistics are applicable to absolute abundances or their transformations and can be evaluated in each of the normalization domains in the same way as for proportions. The choice of domain depends on purposes of the required analysis.
+
+In this paper, a special attention is given the abundance expressed as clr.
+
+$\sum_{i_{\textcolor{gray}{\text{@}L}}=1}^{F_{\textcolor{gray}{\text{@}L}}}{p_{\textcolor{gray}{i_{\text{@}L}|j}}}=1=\frac{1}{R_{\textcolor{gray}{T,j}}}\sum_{i_{\textcolor{gray}{\text{@}L}}=1}^{F_{\textcolor{gray}{\text{@}L}}}{a_{\textcolor{gray}{(i_{\text{@}L},j)}}}$
+
+# Bayes theorem {#sec:BayesTh}
+
+It is known that joint and conditional probabilities of two independent events $i$ and $j$ are related by the following relationship:
+<!-- $p_{\textcolor{gray}{i,j}}=p_{\textcolor{gray}{i|j}}p_{\textcolor{gray}{j}}=p_{\textcolor{gray}{j|i}}p_{\textcolor{gray}{i}}$ -->
+\begin{equation} \label{eq:BayesTh}
+p_{\textcolor{gray}{i,j}}=p_{\textcolor{gray}{i|j}}p_{\textcolor{gray}{j}}=p_{\textcolor{gray}{j|i}}p_{\textcolor{gray}{i}}
+\end{equation}
+
+In this article, a statistical model for NGS sequencing is proposed in order to manage the compositional outcomes with appropriate mathematical tools and to propose processing algorithms aemphasizing workflows independent of software programming languages. It is worth mentioning that, after the sequencing process, the $\widehat{F}$ observed reads are processed with the aim of recovering information both on the composition in individual samples and on comparisons of compositions among samples. Since NGS instruments sequence a single compound obtained by multiplexing together randomly selected and barcoded DNA fragments within each sample, after sequencing, each read must be identified with a feature $F_{i}$ among those available in the selected reference database and must also be assigned to the original sample, i.e. $S_{\textcolor{gray}{j}}$. In this context, event $i$ is the identification of a read with the feature $F_{\textcolor{gray}{i}}$ available in a reference database.  The event $j$ corresponds to the recognition of a read as belonging to the sequenced sample $S_{\textcolor{gray}{j}}$.  Both events are independent of each other since, once sequencing has been carried out, the identification of a read with a feature does not influence its belonging to the sample which is instead guaranteed by the sample barcode; furthermore, the inclusion of a read in a sample does not impact on the identification of the characteristic which is rather linked to the reference database. Thus, the joint, conditional and marginal probabilities have the following meanings:
+
+- $p_{\textcolor{gray}{i,j}}$ is the joint events probability: the probability that a sequenced read belongs to $S_{\textcolor{gray}{j}}$ and that is also identified as $F_{\textcolor{gray}{i}}$.
+- $p_{\textcolor{gray}{j}}$ is the marginal probability of $j$: the probability that a sequenced read belongs to $S_{\textcolor{gray}{j}}$.
+- $p_{\textcolor{gray}{i}}$ is the marginal probability of $i$: the probability that a sequenced read is identified as $F_{\textcolor{gray}{i}}$.
+- $p_{\textcolor{gray}{i|j}}$ is the probability of $i$ conditioned to $j$:  the probability that a sequenced read belonging to $S_{\textcolor{gray}{j}}$ is $F_{\textcolor{gray}{i}}$.
+- $p_{\textcolor{gray}{j|i}}$ is the probability of $j$ conditioned to $i$: the probability that a sequenced read is identified as $F_{\textcolor{gray}{i}}$ belongs to $S_{\textcolor{gray}{j}}$.
+
+Considering the entire sequencing of the single compound obtained by multiplexing samples, total counts $R_{\textcolor{gray}{T,T}}$ is fixed by the instrument while feature counts $R_{\textcolor{gray}{i,T}}$, with $i=1,....,\widehat{F}$, respect mutual composition since the instrument randomly read DNA fragments. It follows that after the sequencing process only relative abundances make sense, i.e. proportions or ratios between absolute counts. In this paper a Dirichlet-Multinomial model is assumed for each count (see section \@ref(sec:DMMod)) and thus $$\mathbf{R}_{\textcolor{gray}{i,T}}=[R_{\textcolor{gray}{1,T}},...,R_{\textcolor{gray}{i,T}},...,R_{\textcolor{gray}{\widehat{F},T}}]^T\sim \text{DirMult}(R_{\textcolor{gray}{T,T}}, \boldsymbol{\alpha})$$ with the probability vector $\mathbf{p}=[p_{\textcolor{gray}{1}},...,p_{\textcolor{gray}{i}},...,p_{\textcolor{gray}{\widehat{F}}}]^T$ is derived from a $\rm{Dir}(\boldsymbol{\alpha})$ distribution. 
+<!-- Vector $\mathbf{\alpha}$ can be viewed as a pseudocount catches prior assumptions about the distribution of features and , i.e. counts of each feature that describe the sequencing, according to the prior probabilities, before the actual data is collected. -->
+The vector $\boldsymbol{\alpha}$ can be thought of as a pseudocount describing the distribution of features, according to prior probabilities $\mathbf{p}$, before the actual data is collected. Thus $\mathbf{p}$ is the expected value of sample proportions,$\mathbf{\widehat{p}}$, of sequenced features and, in particular:
+
+- $\widehat{p}_{\textcolor{gray}{i,j}}=\frac{a_{\textcolor{gray}{i,j}}}{R_{\textcolor{gray}{T,T}}}$ is the of proportion of $F_{\textcolor{gray}{i}}$ in sample $S_{\textcolor{gray}{j}}$ evaluated over the entire sequencing; 
+- $\widehat{p}_{\textcolor{gray}{j}}=\frac{R_{\textcolor{gray}{T,j}}}{R_{\textcolor{gray}{T,T}}}$ is the proportion of features in sample $S_{\textcolor{gray}{j}}$ evaluated over the entire sequencing;
+- $\widehat{p}_{\textcolor{gray}{i}}=\frac{R_{\textcolor{gray}{i,T}}}{R_{\textcolor{gray}{T,T}}}$ is the proportion of $F_{\textcolor{gray}{i}}$ evaluated over the entire sequencing; 
+- $\widehat{p}_{\textcolor{gray}{i|j}}=\frac{a_{\textcolor{gray}{i,j}}}{R_{\textcolor{gray}{T,j}}}$ is the proportion of $F_{\textcolor{gray}{i}}$ evaluated within sample $S_{\textcolor{gray}{j}}$ ;
+- $\widehat{p}_{\textcolor{gray}{j|i}}=\frac{a_{\textcolor{gray}{i,j}}}{R_{\textcolor{gray}{i,T}}}$ is the proportion of features in $S_{\textcolor{gray}{j}}$ evaluated among the total counts of $F_{\textcolor{gray}{i}}$.
+
+<!-- However, given appropriate prior knowledge, the sum should be adjusted in proportion to the expectation that the prior probabilities should be considered correct, despite evidence to the contrary -->
+
+Considering two features, $i$ and $m$, two samples, $j$ and $k$, the ratios between joint probabilities $p_{\textcolor{gray}{i,j}}$ and $p_{\textcolor{gray}{m,j}}$, the following identities reults:
+
+\begin{equation} \label{eq:Ratiosiminj}
+\frac{p_{\textcolor{gray}{i,j}}}{p_{\textcolor{gray}{m,j}}}= \frac{p_{\textcolor{gray}{i|j}}}{p_{\textcolor{gray}{m|j}}}=\frac{p_{\textcolor{gray}{j|i}}p_{\textcolor{gray}{i}}}{p_{\textcolor{gray}{j|m}}p_{\textcolor{gray}{m}}}
+\end{equation}
+
+
+
+\begin{equation} \label{eq:Ratiosjkofi}
+\frac{p_{\textcolor{gray}{i,j}}}{p_{\textcolor{gray}{i,k}}}= \frac{p_{\textcolor{gray}{j|i}}}{p_{\textcolor{gray}{k|i}}}=\frac{p_{\textcolor{gray}{i|j}}p_{\textcolor{gray}{j}}}{p_{\textcolor{gray}{i|k}}p_{\textcolor{gray}{k}}}
+\end{equation}
+
+Eq. \@ref(eq:Ratiosiminj) asserts  that considering two features $i$ and $m$ within a single sample $S_{\textcolor{gray}{j}}$, the ratio of proportions evaluated across the entire sequencing is equal to the ratio of proportions evaluated within the sample. On the other hand, when the proportions of individual features present in Sj are evaluated in all samples, in order for their ratio to be equal to the ratio of the proportions evaluated in the entire sequencing, they must be weighted by the ratio between proportions of the corresponding features evaluated in the entire sequencing  
+
+Analogously, eq. \@ref(eq:Ratiosjkofi) states that considering feature $i$ that is present in two samples, $S_{\textcolor{gray}{j}}$ and $S_{\textcolor{gray}{k}}$, the ratio of proportions evaluated across the entire sequencing is equal to the ratio between the two samples of the  proportions evaluated among the total counts of $F_{\textcolor{gray}{i}}$. On the other hand, when the proportions of the features present in the two samples  are evaluated within each sample counts, in order for their ratio to be equal to the ratio of the proportions evaluated in the entire sequencing, they must be weighted by the corresponding sample proportion of features evaluated in the entire sequencing. It should be noticed that the last weight disappears if rarefaction is applied to the samples, since it guarantees the same weight to all samples and thus $\frac{p_{\textcolor{gray}{i}}}{p_{\textcolor{gray}{k}}}=1$ holds true.
+
+
+
+## Differential samples abundance
+
+Differential clr abundance of feature $F_{\textcolor{gray}{i_{\text{@}L}}}$ between samples $S_{\textcolor{gray}{j}}$ and $S_{\textcolor{gray}{k}}$ uses the within-sample abundances and can be evaluated as:
+
+\begin{equation} \label{eq:ClrDiff}
+\widehat{\rm{clr}}_{\textcolor{gray}{(i_{\text{@}L}|j)}}-\widehat{\rm{clr}}_{\textcolor{gray}{(i_{\text{@}L}|k)}} = \log\Big(\frac{a_{\textcolor{gray}{(i_{\text{@}L},j)}}}{G(\mathbf{A_{\textcolor{gray}{\text{@}L}}}[,j])}\Big)- \log\Big(\frac{a_{\textcolor{gray}{(i_{\text{@}L},k)}}}{G(\mathbf{A_{\textcolor{gray}{\text{@}L}}}[,k)}\Big)
+\end{equation}
+
+By using the logarithm properties and ....., it results that clr-based differential abundance is the clr evaluated on the abundance ratios as reported in eq. \@ref(eq:ClrDiff).
+
+\begin{equation} \label{eq:ClrDiff}
+\widehat{\rm{clr}}_{\textcolor{gray}{(i_{\text{@}L}|j)}}-\widehat{\rm{clr}}_{\textcolor{gray}{(i_{\text{@}L}|k)}} = \log\Big(\frac{a_{\textcolor{gray}{(i_{\text{@}L},j)}}}{a_{\textcolor{gray}{(i_{\text{@}L},k)}}}\Big) - \log\Big(G\big(\frac{\mathbf{A_{\textcolor{gray}{\text{@}L}}}[,j])}{\mathbf{A_{\textcolor{gray}{\text{@}L}}}[,k]}\big)\Big)=\widehat{\rm{clr}}_{\textcolor{gray}{(i_{\text{@}L}|\frac{j}{k})}}
+\end{equation}
+
+<!-- is equal to the clr of feature $F_{\textcolor{gray}{i_{\text{@}L}}}$ conditioned to the sample $S_{\textcolor{gray}{j}}$ whose abundances, however, are normalized element by element to those in  $S_{\textcolor{gray}{k}}$.  -->
+Being the clr an asymptotic unbiased estimator, thus the CLR-based differential abundance approaches the CLR of the ratio of sample abundances as sequencing depth increases.
+<!-- and it equals the log-fold change of samples abundances minus the log-fold change of samples geometric means. If the two GM are equal thus difference between clr represent an unbiased estimate of the of lfc. -->
+Since 
+
+ 
+ 
+ 
+
+
+<!-- $=  $ -->
+
+<!-- $ -\frac{1-p_{\textcolor{gray}{i_{\text{@}L}|j}}}{2p_{\textcolor{gray}{i_{\text{@}L}|j}}R_{\textcolor{gray}{T,j}}}}\Big)\rightarrow \frac{1}{\widehat{F}_{\textcolor{gray}{\text{@}L}}}\sum_{i_{\textcolor{gray}{\text{@}L}}=1}^{\widehat{F}_{\textcolor{gray}{\text{@}L}}}{\log(a_{\textcolor{gray}{(i_{\text{@}L},j})})}=\log(G(\mathbf{A_{\textcolor{gray}{\text{@}L}}}[,j])$ -->
+ It follows that differential analysis of abundances between samples requires some kind of normalization. ###***
+
+
+
+## Features ranking
+
+In order to benchmark samples based on features abundance, the clr is the only appropriate summary statistics.
+
+$\log G\Big(\frac{\mathbf{A_{\text{@}L}}[i_{\text{@}L},])}{\mathbf{A_{\text{@}L}}[m_{\text{@}L},]}\Big)=\log G\Big(\mathbf{A_{\text{@}L}}[\frac{i_{\text{@}L}}{m_{\text{@}L}},]\Big)$
+
+$E\big\{\log(G(\mathbf{A_{\text{@}L}}[i_{\text{@}L},])\big\}= E\big\{\frac{1}{S}\sum_{j=1}^{S}{\log(a(i_{\text{@}L},j))}\big\} \simeq \frac{1}{S}\sum_{j=1}^{S}{\Big(\log(p_{j|i_{\text{@}L}}R_{i_{\text{@}L}T})-\frac{1-p_{j|i_{\text{@}L}}}{2p_{j|i_{\text{@}L}}R_{i_{\text{@}L}T}}}\Big)\rightarrow \frac{1}{S}\sum_{j=1}^{S}{\log(a_{i_{\text{@}L},j})}=\log(G(\mathbf{A_{\text{@}L}}[i_{\text{@}L},])$
+
+# TODO
+
+## Methods paper
+
+[@greenacre2023aitchison] [@morton2019establishing] [@hu2022locom] [@lin2020analysis_1] [@lin2024multigroup] [@calle2023coda4microbiome] [@zhou2022fastancom] [@swift2023review] [@kurtz2015sparse] [@shaffer2023scnic] 
+
+
+Ratios circumvent bias without microbial load quantification [@morton2019establishing]
+
+methods for estimating relative abundance vary greatly 
+
+[@schloss2024rarefaction] [@schloss2024waste] Rarefaction best
+
+-----------------------------------------------------------------------------
+
+# Results
+
+
+
+
+## DR reveals differentially abundant microbes in saliva
+
+- rarefaction - microbial load (FDR)
+
+- sampling fraction
+
+- differential samples
+
+- differential within
+
+- ranking within sample - within group
+
+## Workflow
+
+- Define the target $RSD$ and minimum feature proportion of interest, $p^*$, to determine the minimum sample sequencing depth by using eq. \@ref(eq:VR) or Table \@ref(tab:TabCRLB).
+
+- use geometric mean to average abundance ratios and rank features abundance
+
+# Introduction {-}
+
+[@fleming1986not] [@fernandes2014unifying] 
+
+In this paper 
+
+
+
+
+
+
+# 1. 
+
+<!-- The arithmetic mean of N numbers is the sum of the numbers divided by N. When the arithmetic mean is calculated from normalized numbers, the results are meaningless. In Table \@ref(Tab:TabAbs)-F1, derived from an example reported in the literature [@fleming1986not] but transpose, all absolute abundances are normalized to feature $F_1$ (within parenthese).    -->
+
+<!-- The problem is the arithmetic mean, which gives meaningless results for normalized numbers.  -->
+
+
+
+<!-- To illustrate the problems with the arithmetic mean using a simple example, consider three features with  -->
+<!-- abundances given in Table \@ref(Tab:SimpleTabAbs).  -->
+
+<!-- As a corollary to what has already been discussed, it is now relevant to introduce RULE 1.1: The sum of normalized numbers is also meaningless. This is fairly obvious since the sum is merely N times the arithmetic mean.  -->
+
+
+
+<!-- # 2.  -->
+
+
+
+
+
+<!-- # 3.  -->
+ 
+
+<!-- When summing or taking the arithmetic mean of raw results, it is implied that each individual feature is of equal importance. Typically, however, you want to weight each feature to simulate a real load. In Table IX, for example, where our simple XYZ example is repeated, $F_1$ consumes 60 percent of our load mix, and $F_2$ consumes 40 percent. This means that$F_1$ is now 14 percent “faster”  -->
+
+
+
+
+
+\newpage
+
+# Tables
+
+## TabAbs {#Tab:TabAbs}
+
+## Simple TabAbs {#Tab:SimpleTabAbs}
+
+
+## Simple TabAbsPropJ  {#Tab:SimpleTabAbsPropJ}
+
+
+
+## SImple TabAbsPropI  {#Tab:SimpleTabAbsPropI}
+
+
+
+## Simple TabAbsPropIJ  {#Tab:SimpleTabAbsPropIJ}
+
+
+
+## TabAbsPropJ  {#Tab:TabAbsPropJ}
+
+
+
+
+## TabAbsPropI  {#Tab:TabAbsPropI}
+
+
+
+
+\newpage
+
+## TabAbsPropIJ  {#Tab:TabAbsPropIJ}
+
+
+
+
+
+
+# Parameters of a single sequenced sample
+
+In this section we assume to sequence and analyze only one biological sample whose characterizing parameters are listed in Table\@ref(tab:TabSampleParameters).
+
+\footnotesize
+
+```{r TabSampleParameters,echo=FALSE, results='asis'}
+mat = matrix(c("Microbiome ($\\mu$B)",              "Observed","$\\mathbf F_{@L}$", 1, 
+               "Feature $\\scriptsize i@L$-th in $\\mu$B","Observed","$F_{i@L}$", 2, 
+               "Library size",                      "Observed","$R_T$", 6,
+               "Taxonomic sensitivity",              "Observed","$sens$", 7,
+               "Richness",                          "Observed","$F_{@L}$", 8,
+               "Microbial load",                    "Unknown", "$A_{@L|j}$", 5,
+               "Abundance (absolute) of features",  "Observed","$A_{@L|j}$", 4,
+               "Abundance (relative) of features",  "Unknown", "$\\mathbf{p}_{@L}$", 3,
+               "Abundance (relative) of features",  "Observed","$\\mathbf{\\hat{p}}_{@L}$", 9, 
+               "Alpha diversity",                   "Observed","$\\hat{\\boldsymbol{\\alpha}}_{@L}$", 10),
+             nrow = 10, ncol = 4,byrow = TRUE,dimnames = list(c("r1","r2","r3","r4","r5","r6","r7","r8","r9","r10"), c("SampleParameter","ParamStatus","SampleSymbols","Order")))
+SampleParameter <-  mat[,"SampleParameter"] #c("Microbiome",   "Library size", "Taxonomic sensitivity", "Richness",      "Microbial load","Abundance (absolute) of the i-th taxon","Abundance (relative) of the i-th taxon","Alpha diversity")
+SampleSymbols     <-  mat[,"SampleSymbols"]
+SampleParamStatus <-  mat[,"ParamStatus"]
+SampleOrder       <-as.numeric(mat[,"Order"])
+SampleTaxaLevDep  <- c("YES",     "NO",                "YES",                  "YES",           "NO",            "NO",                   "NO", "YES")
+
+SampleParameters<-data.frame(SampleParameter,SampleParamStatus,SampleSymbols,SampleOrder)%>%
+  arrange(SampleOrder,SampleParameter)
+row.names(SampleParameters) <- NULL
+
+SampleCaption<-"Parameters characterizing a single sequenced sample. Dependency of a parameter from the taxonomic level L is explicitly indicated in the parameter symbol with the text '@L'. "
+
+SampleParameters%>%
+  select(c("SampleParameter","SampleParamStatus","SampleSymbols"))%>%
+  kbl(caption=SampleCaption,format="latex", booktabs=TRUE, escape=F, align="ll", #latex
+    linesep="",
+    col.names = linebreak(
+      c(
+        "\\textbf{Sample}\n \\textbf{parameter}",
+        "\\textbf{Parameter}\n \\textbf{status}",
+        "\\textbf{Symbol}"
+      ),
+      align="c")
+  )
+```
+
+\normalsize
+
+<!-- After the quality filtering process, the the set of sequenced features at taxonomic level $L$ defines the microbiome, which is indicated with  -->
+<!-- <!-- $\mathbf{F_{@L}}$, has richness equal to $F_{@L}$ and is formed by the set of sequenced features $F[i_{@L}]$ with index $i_{@L}=1_{@L},2_{@L},...,F_{@L}$, i.e. --> -->
+<!-- $\mathbf{F_{@L}}=[F[1_{@L}],F[2_{@L}],...F[i_{@L}],...,F[F_{@L}]]^T$, being $F[i_{@L}]$ the $i_{@L}$-th taxon at level $L$ and $i_{@L}=1_{@L},2_{@L},...,F_{@L}$ the integer indexes up to the sample richness, $F_{@L}$. The absolute observed abundance of each feature is $a[i_{@L}]$ and since we are analyzing the microbiome of a single sample, the minimum observed count is equal to 1, i.e. $a[i_{@L}]>0$ for all features at whatever taxonomic level. Due to the hierarchical structure of the taxonomic database, the feature abundances from SV to phylum are sorted in ascending order, i.e. $a[i_{@SV}] \le  a[i_{@6}] \le a[i_{@5}]  \le ... \le a[i_{@1}]]$. The sample sequence depth, that for a 16S sequencing is the total number of SVs, is given by $R_T=\sum_{i_{@L}=1}^{F_{@L}}{a[i_{@L}]}$ and represents the so called library size which is used to evaluate the relative abundance of each feature. Assuming the feature counts follow a binomial distribution, an unbiased estimator of the proportion of the $i_{@L}$-th taxon is the corresponding absolute count normalized to the library size, i.e. $\hat{p}[i_{@L}]=a[i_{@L}]/R_T$.   -->
+
+It is worth to recall that also in the situation described in this section when only one sample is sequenced by the instrument, the number of DNA molecules of the analyzed ecosystem (also referred to as total microbial load, $A_{@L|j}$) are randomly subsampled and then sequenced [@gloor2017microbiome].
+<!-- the result of DNA sequencing is a subsampling of the molecules of the analyzed ecosystem which is performed randomly [@gloor2017microbiome]. --> It follows that the instrument detects the most probable features, together to some rares, respecting their mutual compositional relationships, and that the precision of their proportional abundance estimate is governed by the library size value, $R_T$  [@gloor2017microbiome].
+Since the minimum sample proportion in the sample is a positive value, without delving into the tricky details involved in estimating the confidence interval of the binomial proportion, we use the "extended rule of three"  [@hanley1983if] to infer, with a confidence equal to $(1-\alpha)\%$, the value of the smallest taxon proportion that could be sequenced, i.e. the taxonomy sequencing sensitivity. This approach is described in Fig.\ref{FigCI} and evaluates the  upper bound, $p_u$, of the $(1-\alpha)\%$ confidence interval (CI) for the binomial proportion $p$ when no event is detected in $R_T$ reads, i.e. the feature has zero counts. It results that $p_u(\alpha)=-\log(\alpha)/R_T$ gives a highly accurate estimate of the $(1-\alpha)\%$CI upper bound when a large number of trials are available [@jovanovic1997look], such as in the sequencing field, and represents the largest value of the proportion of rares that is compatible with the observed result $0/R_T$ at a confidence level of at least $(1-\alpha)\%$. 
+
+<!-- ![Upper bound of the binomial $(1-\alpha)\%$CI: the "extended rule of three" approach. Indicating with X a Binomial random variable with parameters $p$ and $R_T$, the upper bound $p_u(\alpha)$ is evaluated by solving $Pr\{X=0|R_T,p\} \ge \alpha$ for $p$. Features with proportions smaller than $p_u(\alpha)$ are cyan emphasized and present a probability at least equal to $\alpha\%$ of not being sequenced. Proportions of features counted for $n$ times in $R_T$ reads are estimated with $\hat{p}=n/R_T$ (red ticks).   \label{FigCI}](./Tables/FigCI.jpg "a title") -->
+
+
+Thus, considering a confidence level equal to $(1-\alpha)\%$, features not sampled with $R_T$ reads present a proportion value smaller than  $p_u(\alpha)$  while features with at least 1 observation have a proportion value greater than $p_u(\alpha)$ .
+
+<!-- Thus, for each $R_T$, features with proportion value smaller than  $p_u(\alpha)$ have a probability at least equal to $\alpha\%$  of not being sequenced and features characterized by a proportion value largest than $p_u(\alpha)$ have an observed absolute abundance at least equal to 1 with a probability equal to $(1-\alpha)\%$.  -->
+
+It follows that the smallest sample proportion greater than $p_u(\alpha)$ is the taxonomy sensitivity of the sequencing, $sens(\alpha)$, corresponding to a confidence $(1-\alpha)\%$ and that the minimum number of counts that guarantees an estimated proportion greater than $p_u(\alpha)$ is $n_u(\alpha) = \lceil (-\log(\alpha)) \rceil$, where the operator $\lceil \cdot \rceil$ indicates the smallest integer greater than its argument. Thus, taxonomy sensitivity of the sequencing process is given by  
+$sens(\alpha)=n_u(\alpha)/R_T$, depends on the library size and is independent of the taxonomy level.
+<!-- that have a probability of not being sequenced equal to  $(1-\alpha)\%$ due to limits of the library size. -->
+
+<!-- DECISIONE SU QUALE LIVELLO LAVORARE!!! perchè nu è indipendente da L -->
+
+It should be noted that features with observed sample counts less than $n_u(\alpha)$ are the rare ones and are randomly sampled from the ecosystem according to the constraints imposed by $R_T$.
+<!-- with confidence $(1-\alpha)\%$.  -->
+The greater the number of reads, the greater the resolution of the taxonomic frequency, i.e. smaller $sens(\alpha)$.
+
+It follows that parameters depending on $R_T$ are $sens(\alpha)$, $\hat{p}$ and $F_{@L}$.
+
+
+
+```{r ExtendedRuleThree}
+R_T<-c(1000,1000,1000,1000,10000,10000,10000,10000,100000,10000,100000,100000)
+#R_T<-rep(seq(1000:1000:10000),3)
+alpha<-c(0.05,0.01,0.001,0.0001,0.05,0.01,0.001,0.0001,0.05,0.01,0.001,0.0001)
+RuleOf<-round(-log(alpha),digits = 1)
+pu<- -log(alpha)/R_T
+nu<-(ceiling(RuleOf))
+
+TabRuleOf <-  data.frame(R_T,alpha,RuleOf,pu,nu)%>%
+  arrange(R_T)
+
+TabRuleOf<-TabRuleOf%>%
+  mutate(R_T=format(R_T, scientific = FALSE))%>%
+  mutate(pu=format(pu, scientific = TRUE,digits = 2))%>%
+#  mutate(pu=format(pu*100, scientific = TRUE,digits = 2))%>%
+  mutate(R_T=as.character(R_T),alpha=as.character(alpha),RuleOf=as.character(RuleOf),pu=as.character(pu),nu=as.character(nu))
+TabRuleOfCaption="TabCap"
+```
+
+<!-- ![Caption of the figure](./Tables/TabPu1.pdf "a title") -->
+
+<!-- ![Minimum number of counts, $n_u$, that guarantees an estimated proportion greater than the binomial $(1-\alpha)\%$CI: the "extended rule of three" approach. The  resolution of the sequenced taxonomy, $sens$, is the smallest sample proportion greater than $p_u=-\log(\alpha)/R_T$, and is tabulated for many different $R_T$ values.   \label{TabPu2}](./Tables/TabPu2.jpg "a title") -->
+
+\footnotesize
+
+```{r TabExtendedRuleThree, asis, eval=FALSE}
+
+TabRuleOf%>%
+#  select(c(1:2))%>%
+  kbl(caption=TabRuleOfCaption,format="latex", booktabs=TRUE, escape=F, align="rlllr",
+    linesep="",
+    col.names = linebreak(
+      c(
+        "\\textbf{Library size}\n \\textbf{$R_T$}",
+        "$\\mathbf{\\alpha}$",
+        "\\textbf{RuleOf}\n \\textbf{$-\\log(\\alpha)$}",
+        "\\textbf{$p_u$}",
+        "\\textbf{$n_u$}"
+      ),
+      align="c")
+  )
+```
+
+\normalsize
+
+
+```{r PlotExtendedRuleThree, eval=FALSE}
+
+R_T<-c()
+alpha<-c()
+RuleOf<-c()
+pu<-c()
+nu<-c()
+i<-1
+for (i_R_T in (seq(1000,100000,5000))){
+  for (i_alpha in (c(0.05,0.01,0.001))){
+    i<-i+1
+    R_T[i]<-i_R_T
+    alpha[i]<-i_alpha
+    RuleOf[i]<-round(-log(i_alpha),digits = 1)
+    pu[i]<--log(i_alpha)/i_R_T
+    nu[i]<-ceiling(RuleOf[i])
+  }
+}
+
+
+TabRuleOf <-  data.frame(R_T,alpha,RuleOf,pu,nu)%>%
+  arrange(alpha)
+
+TabRuleOf%>%mutate(alpha=as.factor(alpha))%>%
+  ggplot(aes(R_T,pu,color=alpha))+
+  geom_point()+
+  geom_{\text{@}L}ine()+
+  scale_y_{\text{@}L}og10() +
+  scale_x_{\text{@}L}og10() 
+
+TabRuleOf%>%
+  ggplot(aes(alpha,nu))+
+  geom_point()+
+  geom_{\text{@}L}ine()+
+  scale_y_{\text{@}L}og10() +
+  scale_x_{\text{@}L}og10() 
+```
+
+# Binomial CI
+
+```{r}
+aij<-10
+RT<-1000
+pu<-aij/RT/10
+c(aij,RT,pu)
+prop.test(x = c(aij), n = c(RT), p=c(0.01),
+                conf.level = .95, 
+                correct = TRUE)
+
+#install.packages("Hmisc")
+
+# load the library
+library(Hmisc)
+ 
+# calculate for 34 with 95%confidence level
+binconf(x=aij, n=RT,
+        method="exact",
+              alpha=.05)
+
+
+
+```
+
+
+
+# Parameters of samples in group
+
+When a group of $S$ samples is available, parameters characterizing the $j-th$ sample have the subscript $j$, as indicated in Table\@ref(tab:TabSamplesParameters). The microbiome  $\mathbf{F_{@L}}$ refers to all sequenced samples and the absolute observed abundance of the $i_{@L}$-th feature in the $j-th$ sample, $a[i_{@L},j]$, admits the zero value, i.e. all features belongs to at least one sample but not all samples may present all features.  The sample sequence depth is given by $R_{T|j}=\sum_{i_{@L}=1}^{F_{@L}}{a[i_{@L},j]}$ and represents the sample library size which is used to estimate the relative abundance of each feature in the sample, $\hat{p}_{i@L|j}=a_{i@L|j}/R_{T|j}$.  When samples come from the same ecosystem, the total microbial load, $A_{@L|j}$, is a characteristic common to all samples of the group and is independent on $j$. 
+Since high throughput sequencing processes many samples at the same time, also the sample proportion of each feature within the whole sequencing, $\hat{p}_{i,j}$ is a parameter to be considered for the evaluation of the quality of the sequecing.
+
+
+
+
+\footnotesize
+
+```{r TabSamplesParameters, echo=FALSE}
+mat = matrix(c("Microbiome of $G$ ($\\mu$B)",                "Observed","$\\mathbf F_{@L}$", 1, 
+               "Feature $\\scriptsize i@L$-ith in $\\mu$B",  "Observed","$F_{i@L}$", 2, 
+               "Library size of $S_j$",                      "Observed","$R_{T|j}$", 6,
+               "Taxonomic resolution of $S_j$",              "Observed","$sens_{|j}$", 7,
+               "Richness of $S_j$",                          "Observed","$F_{@L|j}$", 8,
+               "Microbial load of $S_j$",                    "Unknown","$A_{@L|j}$", 4,
+               "Abundance (absolute) of features in $S_j$",  "Observed","$\\mathbf{a}_{@L|j}$", 3,
+               "Abundance (absolute) of $F_{i@L}$ in $S_j$", "Observed","$a_{i@L|j}$", 5,
+               "Abundance (relative to $S_j$) of features", "Unknown","$\\mathbf{p}_{@L|j}$", 9, 
+               "Abundance (relative to $\\mu$B) of features","Unknown","$\\mathbf{p}_{@L,j}$", 10, 
+               "Abundance (relative to $S_j$) of features",  "Observed","$\\mathbf{\\hat{p}}_{@L|j}$", 11, 
+               "Abundance (relative to $\\mu$B) of features","Observed","$\\mathbf{\\hat{p}}_{@L,j}$", 12, 
+               "Alpha diversity of $S_j$",                   "Observed","$\\hat{\\boldsymbol{\\alpha}}_{@L|j}$", 13),
+             nrow = 13, ncol = 4,byrow = TRUE,dimnames = list(c("r1","r2","r3","r4","r5","r6","r7","r8","r9","r10","r11","r12","r13"), c("SamplesParameter","ParamStatus","SamplesSymbols","Order")))
+SamplesParameter <-  mat[,"SamplesParameter"]
+SamplesParamStatus <-  mat[,"ParamStatus"]
+SamplesSymbols <-  mat[,"SamplesSymbols"] 
+SamplesOrder<-as.numeric(mat[,"Order"])
+SamplesTaxaLevDep  <- c("YES",     "NO",                "YES",                  "YES",           "NO",            "NO",                   "NO", "YES")
+
+SamplesParameters<-data.frame(SamplesParameter,SamplesParamStatus,SamplesSymbols,SamplesOrder)%>%
+  arrange(SamplesOrder,SamplesParameter)
+row.names(SamplesParameters) <- NULL
+
+SamplesCaption<-"Parameters characterizing a group, $G$, of sequenced samples $S_j, j=1,...,S$. Dependency of a parameter from the taxonomic level L is explicitly indicated in the parameter symbol with the text '@L'. "
+
+
+library(kableExtra)
+SamplesParameters%>%
+  select(c("SamplesParameter","SamplesParamStatus","SamplesSymbols"))%>%
+  kbl(caption=SamplesCaption,format="latex", booktabs=TRUE, escape=F, align="ll",
+    linesep="",
+    col.names = linebreak(
+      c(
+        "\\textbf{Samples}\n \\textbf{parameter}",
+        "\\textbf{Parameter}\n \\textbf{status}",
+        "\\textbf{Symbol}"
+      ),
+      align="c")
+  )
+
+```
+
+
+\normalsize
+
+
+# Steps to follow
+
+1. Set the target $(1-\alpha)\%$ confidence level for the taxonomy sequencing resolution, $sens(\alpha)$.
+2. Calculate $n_u(\alpha)$.
+3. For each $S_j$ evaluate $sens_j(\alpha)$ 
+
+
+
+
+# To be inserted 
+
+
+Each sample is characterized by a specific microbiome which can be analyzed at any taxonomic level.
+
+Each group is characterized by the union of the microbiome of the samples.
+
+Sample parameters to be considered:
+
+* Sample Library size
+* Sample Sequencing Depth
+* Sample taxonomic sensitivity
+* Sample taxonomic resolution
+* Sample richness
+* Sample microbial load
+* Per sample abundance of each taxon
+
+Experimental setup parameters that influence group parameters
+
+* Number of samples
+* Structural zeros
+* Microbiome core 
+* Average abundance of each taxon
+
+\newpage
+
+
+
+
+## Microbiome
+
+The microbiome of a sample can be specified and analyzed for each taxonomic level up to the species or sequence variant (SV) level. Taxonomy abundances and average values perform differently based on the taxonomic level, $L$, that is a parameter that should be also considered for evaluating the biodiversity degree of a sample or an ecosystem or the differences between diversity of groups of samples [@{feranchuk2018evaluating}]. In this work the dependence of a parameter or of a positioning index by the taxonomic level $L$ is explicitly indicated in the corresponding symbol with the subscript '\@L', thus allowing a compact formal description of the microbial composition and diversity indices at every level. In particular, the following taxonomy levels will be considered: phylum ($L=1$), class ($L=2$), order ($L=3$), family ($L=4$), genus ($L=5$), species ($L=6$) and sequence variant (SV) or OTU ($L=SV$).
+
+## Binomial model  {#sec:BinMod}
+
+Let us consider a vector of abundances $\mathbf{a}=[a_{1},a_{2},...,a_{i},...,a_{\widehat{F}}]$ with $i=1,...,\widehat{F}$ 
+<!-- of  $\widehat{F}$  features  -->
+that represents the outcome of the sequencing of a single sample $S$. The element $a_i$ is the abundance of the $i$--th feature, $F_i$, and the sum of all features abundance is $R$ is the total library size, i.e. $R=\sum_{i=1}^{\widehat{F}}{a_i}$. This value depends on the assay settings and not on the input material thus is an arbitrary value characterizing the sequencing process and related to the sample richness [@quinn2018understanding]. In particular, the greater the value of R, the greater the coverage of less abundant features and therefore the greater the number of detected features, $\widehat{F}$, which tends to the actual number of features of the sequenced sample, $F$. The arbitrariness of $R$ means that counts of NGS data are not absolute but compositional and that can be modeled using the binomial distribution as follows: $a_i$ is the number of times a read has been successfully recognized as feature $F_i$ in $R$ independent sequencing reads with success probability equal to $p_i$, i.e. $a_i \sim \text{Bin}(R,p_i)$.
+<!-- , with constraint $\sum_{i_1}^{F}{p_i}=1$.  -->
+Within this model, a failure corresponds to the event that the sequenced read is not recognized as $F_i$ and has probability $q_i=(1-p_i)$. The support of the distribution is the set $\{0,1,...,R\}$. 
+
+
+Although arbitrary, after sequencing the $R$ parameter is known and the proportion of successes of each observed feature, $\widehat{p}_i=\frac{a_i}{R}$, is an unbiased estimate of the corresponding binomial probability with variance equal to $Var\{\widehat{p}_i\}=\frac{p_i(1-p_i)}{R}$, thus library size affects precision of the relative abundance estimate.
+
+Please note that features with null-probability can never be present in the sequencing result of a single sample since $p_i=0$ means that the feature is certainly absent from the sample and therefore will never be sequenced. Thus, all observed features have $a_i > 0$. Missing features counts occur only when at least two samples are analyzed simultaneously as some features may be unobserved in one of the sequenced samples. In this case, a-priori knowledge is needed to determine whether the corresponding missing count is due to the zero value of the sample feature probability or to the small number of sequenced reads that fail to ensure a reliable estimate of the binomial proportion. Missing counts must be properly managed based on the required analysis.
+
+<!-- In any observed data set or sample there is the possibility, especially with low-probability events and with small data sets, of a possible event not occurring. Its observed frequency is therefore zero, apparently implying a probability of zero. This oversimplification is inaccurate and often unhelpful, -->
+<!-- By artificially adjusting the probability of rare (but not impossible) events so those probabilities are not exactly zero, zero-frequency problems are avoided. Also see Cromwell's rule. -->
+<!-- The simplest approach is to add one to each observed number of events, including the zero-count possibilities. This is sometimes called Laplace's rule of succession. This approach is equivalent to assuming a uniform prior distribution over the probabilities for each possible event (spanning the simplex where each probability is between 0 and 1, and they all sum to 1). -->
+<!-- Pseudocounts should be set to one only when there is no prior knowledge at all – see the principle of indifference. However, given appropriate prior knowledge, the sum should be adjusted in proportion to the expectation that the prior probabilities should be considered correct, despite evidence to the contrary – see further analysis. Higher values are appropriate inasmuch as there is prior knowledge of the true values (for a mint-condition coin, say); lower values inasmuch as there is prior knowledge that there is probable bias, but of unknown degree (for a bent coin, say). -->
+
+
+# References
+
+
+```{r}
+knitr::knit_exit()
+```
+
+
+
+```{r}
+#Data from https://github.com/FrederickHuangLin/ANCOM-BC-Code-Archive/tree/master
+GlobalGutMetadataFN<-"./DataAncomBC/ANCOM-BC-Code-Archive-master/data/global_gut/global_gut_metadata.txt"
+GlobalGutMetadata<-read.table(GlobalGutMetadataFN[1], sep = ',', header = TRUE, check.names=FALSE )
+
+GlobalGutTaxonomyFN<-"./DataAncomBC/ANCOM-BC-Code-Archive-master/data/global_gut/global_gut_taxonomy.txt"
+GlobalGutTaxonomy_mat_1 <- read.table(GlobalGutTaxonomyFN[1], sep = '\t', header = TRUE, check.names=FALSE )
+
+GloabalGutOTUFN<-"./DataAncomBC/ANCOM-BC-Code-Archive-master/data/global_gut/global_gut_otu.txt"
+GloabalGutOTU<-read.table(GloabalGutOTUFN[1], sep = '\t', header = TRUE, check.names=FALSE )
+
+
+S<-GloabalGutOTU%>%
+  mutate(taxonomy=paste0(OTU_ID,"_",taxonomy))%>%
+  select(-c("OTU_ID"))%>%
+  tibble::column_to_rownames("taxonomy")
+
+Sa<-rowSums(S)%>%as.data.frame()%>%
+  tibble::rownames_to_column("OTU_ID")
+
+```
+
+
+
+
+
+```{r}
+knitr::knit_exit()
+```
+
+From here it is the old version in the "Compositional" folder.
+
+# Introduction
+
+https://cran.r-project.org/web/packages/tabula/vignettes/diversity.html#dominance-index
+https://bio.libretexts.org/Sandboxes/tholmberg_at_nwcc.edu/General_Ecology_Ecology/Chapter_22%3A_Biodiversity/22.5%3A_Measuring_Biodiveristy
+
+
+Amplicon sequencing approach is commonly employed in microbiome studies and sequencing depth is considered as a major factor influencing the outcome of data analyses. As of now, the effect of amplicon sequencing depth in environmental microbiome analyses is not explicitly illustrated.  [@ramakodi2021effect]
+Richness is an indicator of the relative wealth of species in a community
+concept is simple, it is almost impossible to provide a formal definition. T
+stems from the inherent dependence of any richness measure on sample size; the
+larger the sample the greater the expected number of species. Because it is virtually
+impossible to ascertain the complete composition of an ecologic community, rich-
+ness is often measured as the number of species in samples of an arbitrarily chosen
+constant size. It would clearly be desirable to have a richness index independent of
+sample size. [@peet1974measurement]  Comparison of species counts requires equal sample sizes. One method of avoid-
+ing incompatibility of measurements resulting from samples of different sizes, the
+rarefaction method of Sanders (61), is to calculate the number of species expected
+from each sample if all the samples were reduced to a standard size (such as 1000
+individuals). [@peet1974measurement]
+
+The results of the present study confirm what has been known from species diversity studies (Pielou, 1966), that the original Shannon index, HMLE is strongly dependent on sample size. This phenomenon is stronger both in more genetically variable populations and in more variable loci, particularly at small sample sizes. It is not possible to estimate the true value of Shannon index using HMLE when the sample size is small. The most likely explanation for it is that in small samples, the probability that all alleles have been captured is lower than when the sample is large. [@konopinski2020shannon] 
+
+https://cran.r-project.org/web/packages/tabula/vignettes/diversity.html
+
+
+Several factors affect the structure of communities, including biological, physical and chemical phenomena, impacting the quantification of biodiversity, measured by diversity indexes
+such as Shannon’s entropy. Then, once a point estimate is obtained, confidence intervals
+methods such as the bootstrap ones are often used. [@palma2022new] 
+
+
+This is the introduction [@bukin2019effect]
+
+Diversity index evaluation based on proportion estimates or on observed features
+
+Index values depends on:
+  - sample composition i.e. proportions values (ie. equal features thus same obs feat but different props)
+  - sequencing depth (observed features)
+  
+Error index estimates: precision and accuracy + sequencing error rate
+
+Samples comparison
+
+Group of samples comparison
+
+Library size gives 
+
+
+Unfortunately, in practice many ecologists have not been too concerned that classical diversity indices may give results that are misleading or difficult to interpret [59]. In their view, the actual values of the indices are unimportant, as long as they can be used to calculate the statistical significance of the change in diversity following a disturbance [46]. But in many cases this is not a reasonable basis for study conclusions, since the statistical significance of a change in the diversity index often has little to do with the actual magnitude or ecological significance of the change [52]. Furthermore, one index may indicate a statistically significant change in diversity while another index does not. [@daly2018ecological] 7.2. Estimators of Diversity Indices
+7.2.1. Richness
+Estimates of richness are obviously strongly correlated with the size of the sample used to obtain them: the total number of species in a sampling unit increases with its area and the number of detected individuals, and therefore comparing two different sampling units will be subject to bias. To address this, methods have been proposed that reduce samples of different sizes to a single standard size, so that they may be comparable in terms of their richness, a procedure known as rarefaction [55]. In sum, when one is faced with the task of selecting a diversity index, it is enlightening to consider Baumgärtner’s observation that all diversity indices require, to a greater or lesser extent, that the user makes a priori value judgements about which aspects of biodiversity are more important [13]. This includes, for example, the choice of the sensitivity parameter q in parametric families of indices. In choosing the value of q, the user specifies whether rare or common species are more important for the type of diversity they wish to study. Hints about the most appropriate value(s) to study might be gleaned from other insights into the community, but q cannot itself be measured or inferred from the community. Hence, there is no correct value of q in any application, and it must instead be chosen by the user based on the goals of the study.
+
+
+
+# Introduction 
+
+Amplicon sequencing data consist of discrete counts of sequence reads, the sum of which is the library size. Groups of samples typically have different library sizes that are not representative of biological variation; library size normalization is required to meaningfully compare diversity between them. [@cameron2021enhancing]
+
+Rarefying is often dismissed as statistically invalid because subsampling effectively discards a portion of the observed sequences. [@cameron2021enhancing]
+
+We need to evaluate what we are neglecting. (Rari: sono quelli al di sotto di un valore di proporzione e contati per meno di 3 volte.)
+
+In this paper it is shown that rarefaction assure that comparison process is negligibly affected by library size. That rarefaction can be executed if a reasonable sample size is guaranteed.
+
+* Experiment is designed in order to capture the microbiome
+
+* Diversity degree evaluation or comparison: both require the definition of the microbiome of interest to analyze. Comparison of indexes between groups need to be carefully designed and CI need to be evaluated together to their accuracy.
+
+* Shannon and Observed features depends on library size and on feature distribution and also their precision and accuracy.
+
+* Shannon Precision error
+* Shannon Accuracy error
+
+* Observed features precision error
+* Observed feature accuracy error
+
+
+
+Problems arise when we want to compare diversity between samples or groups. Comparing groups:
+- Number of reads RTj
+  * Abundance feature resolution
+  * 
+- Richness: number of types of features
+-  
+
+Rarefaction: need to verify that reolution is adequate
+
+# Sentence
+
+Differential abundance analysis is controversial throughout microbiome research. Gold standard approaches require laborious measurements of total microbial load, or absolute number of microorganisms, to accurately determine taxonomic shifts. Therefore, most studies rely on relative abundance data. Here, we demonstrate common pitfalls in comparing relative abundance across samples and identify two solutions that reveal microbial changes without the need to estimate total microbial load. We define the notion of “reference frames”, which provide deep intuition about the compositional nature of microbiome data. In an oral time series experiment, reference frames alleviate false positives and produce consistent results on both raw and cell-count normalized data. Furthermore, reference frames identify consistent, differentially abundant microbes previously undetected in two independent published datasets from subjects with atopic dermatitis. These methods allow reassessment of published relative abundance data to reveal reproducible microbial changes from standard sequencing output without the need for new assays. 
+
+Statistically convergent estimates of the diversity of major species (defined as those that together are covered by 95% of reads) can be achieved at the sample sizes of 10000 to 15000 reads. The relative error of the Shannon index estimate for this condition is lower than 4%. [@bukin2019effect] Modern microbiome studies often rely on the analysis of 16S ribosomal RNA sequences for the taxonomic identification of bacterial and archaeal strains. This kind of analysis has become a de factostandard for prokaryotic taxonomy. The 16S rRNA gene is approximately 1600 base pairs long and includes nine hypervariable regions of varying conservation (V1-V9). More conservative regions are
+useful for determining the higher-ranking taxa, whereas more quickly evolving ones can help identify genus or species. Metabarcoding using 16S rRNA marker is widespread in the studies of various microbial communities.
+
+The introduction of the next-generation sequencing techniques has led to novel applications of metabarcoding methods. In particular, increased read counts have allowed for quantitative estimates of the microbial community composition. Another advantage of NGS-based metabarcoding is that quantitative analysis has become available for communities of uncultured microbes. Yet, using NGS technologies has its limitations, caused chiefly by shorter read length. Its most important impact is the decreased precision of
+species identification. The microbiome of lake Baikal is well-studied by microbiologists. Specifically, metabarcoding works have been performed for the communities of the
+water column15–17, bottom sediments18–22, and communities associated with certain baikalian
+organisms23,24. These works have shown that the bacterial biodiversity in the lake is extremely high.
+High biodiversity in Lake Baikal can be explained by the presence of multiple distinct niches varying in
+terms of environmental conditions.
+
+
+Often, data on the abundances of the organisms are summarized by an index,
+ such as a diversity measure. Changes in the community are then associated with changes
+ in the measure. Although the measures used to assess such changes are subject to criticism
+ (Hendrickson, 1979; Hurlbert, 1971), this approach is commonly used.
+ [@smith1984nonparametric] 
+
+
+Diversity is a concept central to ecology, and its measurement is essential for any study of
+ecosystem health. But summarizing this complex and multidimensional concept in a single measure
+is problematic. Dozens of mathematical indices have been proposed for this purpose, but these can
+provide contradictory results leading to misleading or incorrect conclusions about a community’s
+diversity. In this review, we summarize the key conceptual issues underlying the measurement of
+ecological diversity, survey the indices most commonly used in ecology, and discuss their relative
+suitability. We advocate for indices that: _{i} satisfy key mathematical axioms; (ii) can be expressed as
+so-called effective numbers; (iii) can be extended to account for disparity between types; (iv) can be
+parameterized to obtain diversity profiles; and (v) for which an estimator (preferably unbiased) can
+be found so that the index is useful for practical applications. [@daly2018ecological] Any meaningful study of biodiversity, no matter which aspect is in question, must involve its
+quantitative measurement. This is a complex task both conceptually and practically. Biodiversity is
+quantified by constructing mathematical functions generally known as diversity indices. The use of
+such indices permits comparisons between different spatial regions, temporal periods, taxa (species),
+functional groups, or trophic levels. These measures are therefore essential tools for ecological
+monitoring and conservation, as well as for any efforts to study and address the biodiversity crisis [6].  In recent years, the era of “Big Data”
+has spread to ecology, in particular microbial ecology. This has driven a reassessment of which
+diversity indices to use to summarize and analyze these data [7]. This has led to increased focus on
+the mathematical behaviour of different measures, since there has been an increasing recognition
+that ecologists (often non-experts in mathematics) are using measures of diversity without proper
+consideration of their behaviour and limitations. This has led to difficulties in interpreting studies,
+and especially in comparing them. As we shall see, the choice of index is highly dependent on the
+particular study context. But there are a number of important points to consider. First and most importantly, ‘biodiversity’ is such a broad concept that it can and has been defined
+in many different ways, depending on researchers’ specific needs and interests It is also clear that different diversity indices can therefore
+measure patently different aspects of diversity. But even once researchers have decided which form of
+ diversity they wish to measure, quantifying biodiversity is still problematic because there is no single
+index that can provide a suitable summary. A second problem is the fact that the concept of diversity is often confounded with the indices
+that measure it. Analogously, the most
+commonly used diversity measure, the Shannon index, is actually a measure of entropy. Entropy refers
+to uncertainty in information: Third, indices typically condense all relevant information about an ecosystem’s diversity into
+a single real number, so that there are unfathomably many ways of calculating such an index
+from the complex and extensive data on the ecosystem in question. Different indices can weigh
+different components of these data more strongly than others, and can even entirely neglect some [13].
+Needless to say, this freedom of formulation has permitted the emergence of dozens of different indices,
+which often provide wildly different estimates of ostensibly the same quantity . A final confounding issue is the relatedness but non-equivalence of the concept of diversity across
+different scientific disciplines. The obvious similarities between diversity measurement in, for example,
+sociology or economics compared to ecology, have encouraged the adoption of indices by one field
+from another, thus swelling their number without proper consideration of their conceptual differences. Before we delve further into ecological diversity and its mathematical representations, it is
+important to emphasize that none of the numerous diversity indices are wrong per se. On the contrary,
+each index has its own unique properties that are useful for specific applications. The key point of
+Hurlbert’s criticism relates to diversity as a unified concept: since raw diversity indices exhibit such a
+wide variety of mathematical behaviours, they cannot all give reasonable results when directly inserted
+into any general equation or formula of diversity [8]. Thus it is critically important to consider the
+purpose for which an index will be used, when addressing how it is constructed mathematically and
+how it should be interpreted ecologically. The purpose of an index’s use will of course depend strongly on the context of the study. Examples
+might include: classifying shifts in diversity after a disturbance; ranking ecosystems in terms of their
+biodiversity (to determine which are more in need of protection); detecting the effects of external
+(typically anthropogenic) factors on diversity; understanding interactions between diversity at different
+trophic levels (i.e., how changes in one can affect another); or searching for mechanistic explanations
+of diversity changes [6]. For each of these goals and many others, some indices will be more suitable
+than others, and a poor choice may lead to misleading or even false conclusions. 
+
+Components of diversity
+
+
+It is generally understood that diversity can be divided into three components: richness, evenness,
+and disparity [10]. Most indices (including almost all the classical and best established indices) do not
+account for disparity, and hence this component of diversity is often neglected in reviews of the topic.
+In this section, we provide definitions of these three components (illustrated in Figure 1), as well as a
+brief summary of their ecological significance. 
+
+Richness
+In ecological terms, increased richness has been shown to both enhance community functionality
+(i.e., increase productivity) and to stabilize it in the face of disturbances [21,22]. Two mechanisms are
+believed to drive this effect [23]. The complementarity mechanism assumes that different species use
+different resources, even if only slightly. Then communities with higher richness will use more of the
+available resources, thus increasing their productivity. On the other hand, the selection mechanism
+assumes that different species contribute differently to the community’s overall functionality,
+namely that some species are more productive than others. Then richer communities are more
+likely to contain more productive species, enhancing the community productivity
+
+Of course, in practice ecologists can only count those species that they can find: rarely do they
+encounter communities that can be fully censused, for obvious practical reasons. Instead, the richness
+of a community must often be estimated from a sample or subset of the community, a topic that will be
+discussed in Section 7.
+Evenness
+Aside from the total number of species in a community, the distribution of their abundances is also
+an important component of diversity. If a species is represented by only a few individuals, it should
+be clear that it contributes less to the community’s diversity than a species represented by several
+thousand individuals. The equitability of a community’s species abundance distribution is referred
+to as its evenness. A community is perfectly even if every species is present in equal proportions,
+and uneven if one species dominates the abundance distribution.
+The important role of species evenness in ecological diversity has received less attention than
+that of species richness, but is also inarguable [24]. Evenness has been shown to be a key factor in
+preserving the functional stability of ecosystems [25], as well as in enhancing productivity by increasing
+the representation of each species’ functional traits [26]. In contrast, uneven communities are often
+more susceptible to invasion and less resilient to stresses and disturbances [27].
+Unlike richness, there is no consensus on how to measure evenness. The literature relating to the
+formulation and choice of an evenness index is a self-contained and well-developed sub-field of the
+diversity index literature. This topic is more narrowly focused, since it only considers one component of
+diversity, and thus we restrict ourselves here to a short summary of the most important considerations
+relating to evenness, and mention several extensive reviews of this topic for the interested reader.
+
+Disparity
+As we will shortly see, most classical diversity indices account for two components of
+diversity—richness and evenness—and thus implicitly assume that distinct species have nothing
+in common. That is to say, they do not account for any disparity between species. This conception of
+diversity is referred to as species-neutral diversity [19]. It implies, for instance, that a community of six
+dramatically different species is considered to be no more diverse than a community of six species
+of butterflies.
+Hence there are relatively fewer diversity indices that reflect the more realistic and nuanced
+situation of varying dissimilarities between species. Such indices are termed similarity-sensitive.
+The reason for the dearth of similarity-sensitive indices may well be the fact that “theoretical ecologists
+have been hesitant to introduce new diversity indices when the profusion of similarity insensitive
+indices is already perceived to form an impenetrable jungle” [36].
+
+o account for species disparity, similarity-sensitive indices incorporate in their formulation some
+measure of similarity. Many scientific fields make use of similarity measures, for example in biology
+for taxonomic classification, in economics for analyzing investment policy, in information theory for
+document filtering, or in genetics for sequence analysis [38]. A similarity measure is related in a
+complementary way to the mathematical concept of a distance metric, since dissimilarity can often
+be represented as a distance. However, many ecological dissimilarity measures do not fulfill all the
+properties necessary to be considered a distance metric [19], and hence cannot make use of the many
+theorems and results developed by mathematicians relating to distance metrics.
+Within ecology, various methods for measuring similarity between species have already been
+developed. Some are genetic [39], others are functional [40], taxonomic [41], morphological [42],
+or phylogenetic [43]. They generally associate with each focal species some data concerning the
+characteristics deemed to be important, such as a list of functional traits, a DNA sequence, a location
+on a phylogenetic tree, and so on. The similarity values are then computed in terms of some notion of
+difference between the associated data, depending on its particular characteristics
+
+If the abundances are measured by
+counting individuals, then the relative abundance pi represents the probability of randomly selecting
+an individual of species i from amongst all individuals in the community. If the abundances are
+measured in terms of biomass, then the relative abundance pi represents the relative share of the
+community’s biomass that is stored in individuals of species i.
+
+The richness of the community is simply S, while its evenness is calculated from the vector
+of relative abundances p = (p1, ..., pS). Calculating the disparity additionally requires a similarity
+measure, which we discuss later in Section 5.
+The most commonly assumed axioms that a diversity index H(p) should satisfy are also common
+to entropy measures, and are as follows [46]
+
+5.1. Classical Indices
+5.1.1. Definitions
+The most widely used diversity indices can account for richness and evenness, but do not account
+for species disparity. Instead they take as input the vector of relative abundances p = (p1, ..., pS),
+where S is the total number of species in the community. Thus these indices measure species-neutral
+diversity (see Section 3.3) and are known as classical diversity indice
+
+5.1.2. Issues with Classical Indices
+The most widely used measures of diversity in ecology are species richness, the Shannon index
+and the Simpson index [59]. Together, they provide a perfect example of the problems discussed in
+Sections 2 and 3: each index may be used to compare different communities to each other (although we
+shall discuss shortly why even this can be problematic), but diversity values of the different indices
+cannot be directly compared to each other. This is because each index has a different fundamental
+meaning in terms of the diversity it measures.
+Richness is simply the number of species in a community, the Simpson index represents the
+probability that two randomly selected individuals belong to the same species, and the Shannon index
+is a measure of the entropy or disorder of the community. These three indices measure conceptually
+different features of a community, and hence have different units: richness is in units of species,
+the Simpson index is a probability, and the Shannon index is an entropy measure, and therefore has
+units of bits of information.
+Thus, diversity measurements calculated using different classical indices are not immediately
+comparable, which is a serious drawback for any scientific study. But even measurements calculated
+using the same index can present important issues of comparison.
+
+Diversity analysis using classical indices also suffers from their occasionally extreme non-linearity.
+
+
+Unfortunately, in practice many ecologists have not been too concerned that classical diversity
+indices may give results that are misleading or difficult to interpret [59]. In their view, the actual values
+of the indices are unimportant, as long as they can be used to calculate the statistical significance of the
+change in diversity following a disturbance [46]. But in many cases this is not a reasonable basis for
+study conclusions, since the statistical significance of a change in the diversity index often has little to
+do with the actual magnitude or ecological significance of the change [52]. Furthermore, one index
+may indicate a statistically significant change in diversity while another index does not.
+
+7. Practical Estimation of Diversity Indices
+7.1. Background
+When it comes to assessing the diversity of a community in practice, the species proportions
+p = (p1, ..., pS) are generally unknown. Without a full census of the community, calculation of its
+diversity using an index is not possible. Instead, this must be estimated from sampled data.
+For the purpose of this discussion, we assume that we have a sample of n individuals from
+the community in question. Most estimators of diversity assume that this sample is random,
+namely that its observations are independent and identically distributed [94]. But this requires either
+an infinite population, or sampling with replacement. Generally, neither of these requirements are met:
+populations are finite and ecological studies typically sample populations without replacement [95].
+This issue is avoided by considering a sample size much smaller than the population size, so that
+the effect of sampling without replacement from a finite population can be neglected [96]. Thus the
+problem reduces to estimating p using an appropriate sampling design, and then estimating the index
+as a function of the estimated species abundance vector.
+A good estimator of a diversity index is one that is unbiased and with minimal variance [19].
+Therefore, an appropriate measure of an estimator’s error is the mean squared error (MSE), which is
+the sum of squares of the bias and the variance [97]. Bias generally arises for two reasons: unobserved
+species (those present in the community but not in the sample), and the non-linearity of indices with
+respect to the species abundances. The former source of bias is exacerbated the more strongly the
+index depends on S, the richness of the community. Hence, for example, the bias of the Simpson index
+(Equation (8)) is less than that of the Shannon entropy (Equation (7)) since the former assigns less
+weight to rare species, which are less likely to be sampled.
+As with the indices themselves, their estimators should be selected carefully to ensure that
+their formulation is appropriate for the particular application. Interrogation of this point is key,
+particularly since non-experts often resort to dedicated statistical software or packages whose
+
+underlying and disparate estimation techniques can result in different calculations of the same
+quantity [7].
+For most diversity indices, numerous estimators exist. The statistical details of their derivation
+and bias reduction are beyond the scope of this review, so in this section we do not aim for an
+in-depth discussion of these various estimators, but we instead focus on whether an unbiased
+estimator exists for a particular index, and point the interested reader towards more exhaustive
+reviews. Unbiased estimators are of course preferable to biased estimators, but in practice many
+techniques exist for reducing bias, often to minimal levels, so that good estimates of diversity can still
+be obtained with a biased index estimator.
+
+7.2. Estimators of Diversity Indices
+7.2.1. Richness
+Estimates of richness are obviously strongly correlated with the size of the sample used to obtain
+them: the total number of species in a sampling unit increases with its area and the number of detected
+individuals, and therefore comparing two different sampling units will be subject to bias. To address
+this, methods have been proposed that reduce samples of different sizes to a single standard size,
+so that they may be comparable in terms of their richness, a procedure known as rarefaction [55].
+
+The two most frequently used richness estimators are the Chao estimators (Chao1 and Chao2) [98,99],
+and the jackknife method [95]. The Chao estimators estimate the number of unobserved species based
+on the number of species that are observed either once or twice. The jackknife method is based on
+resampling, and aims to reduce the estimator’s bias by considering subsets of the sample, which are
+obtained by removing a certain number of observations (this number is known as the order of the
+jackknife method).
+7.2.2. Simpson Index
+Simpson [57] provided an unbiased estimator of his own index (Equation (8)), which is based on
+the number of pairs of individuals drawn without replacement:
+7.2.3. Shannon Index
+Due to its importance in numerous scientific fields, the Shannon entropy (Equation (7)) has seen
+the development of many different estimators (Marcon [19] provides an overview). The details of these
+estimators are beyond the scope of this review, but for our purposes we note that the estimation of the
+Shannon index is subject to more bias than the estimation of Simpson’s index, since the former is more
+sensitive to richness, i.e., to the number of species that are sampled.
+
+
+
+conservation ecology, the goal of a study is oftentimes to rank different communities (or sites) by
+their diversities, since only
+a ranking of sites by their diversity cannot always be obtained using a parametric family
+
+when one is faced with the task of selecting a diversity index, it is enlightening to consider
+Baumgärtner’s observation that all diversity indices require, to a greater or lesser extent, that the
+user makes a priori value judgements about which aspects of biodiversity are more important [13].
+This includes, for example, the choice of the sensitivity parameter q in
+
+ Diversity indices
+merely provide a summary of an inherently complex and multidimensional concept: a community’s
+structure. Indices achieve this summarization in different ways by emphasizing different aspects of
+diversity. To avoid confusion and misinterpretation, users should first define their objectives and then
+choose the appropriate measure for the specific problem.
+
+
+
+
+
+```{r}
+#http://landscapeportal.org/blog/2017/09/06/r-markdown-template-for-a-scientific-manuscript/
+
+```
+
+
+```{r}
+knitr::knit_exit()
+```
+
+```{r figRef, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figure caption here"}
+## R code here, with plot output at end, for example using ggplot2
+#To crossref: \@ref(fig:figRef)
+```
+
+```{r tabRef, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, results="asis"}
+
+df <- read.csv(...)
+
+knitr::kable(df, caption = "Table caption here...", booktabs = TRUE)
+To crossref:  \@ref(tab:tabRef)
+
+```
